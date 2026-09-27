@@ -6,10 +6,12 @@
 
 ## 部署地址
 
-- GitHub Pages（正式）：`https://xinghuiyinqing.github.io/links/`
-- 旧地址 `https://jianghan749-a11y.github.io/links/` 在 GitHub 用户名改完后会自动 301 到上面这个
+**https://xinghuiyinqing.github.io/links/**
 
-> 注：Pages 域名由 GitHub 用户名决定，用户名一旦改成 `xinghuiyinqing`，站点地址即自动变为正式地址，无需改任何文件。
+- 仓库：`https://github.com/xinghuiyinqing/links`
+- 发布方式：main 分支根目录，`.nojekyll` 已放好
+- 注：Pages 域名由 GitHub 用户名决定（`<用户名>.github.io/<仓库名>`），改名后自动生效，仓库内不需要、也不能用 CNAME 去指定它
+- 更新站点：改完文件 `git add -A && git commit -m "..." && git push`，Pages 约 30 秒后自动重建
 
 ## 目录结构
 
