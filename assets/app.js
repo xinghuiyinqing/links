@@ -2,7 +2,7 @@
    星绘引擎 · 资源门户 交互脚本（原生 JS，无依赖）
    1) 开场动画：载入进度 → 品牌揭示 → 点击进入 → 内容分层入场
    2) 一键复制（Clipboard API + 超时竞速 + execCommand 兜底）
-   3) 顶栏吸顶、分区滚动入场与右侧指示高亮、平滑滚动
+   3) 极简单屏版：无需滚动与分区逻辑
    ========================================================================== */
 (function () {
   'use strict';
@@ -165,7 +165,7 @@
       copyText(text).then(function (ok) {
         if (ok) {
           showToast(label + '已复制：' + text, 'ok');
-          var labelEl = $('.btn-label', btn);
+          var labelEl = $('.btn-label', btn) || $('.entry-text b', btn);
           if (labelEl && !labelEl.dataset.original) {
             labelEl.dataset.original = labelEl.innerHTML;
             labelEl.textContent = '✓ 已复制';
@@ -184,59 +184,4 @@
     });
   });
 
-  /* ============================ 平滑滚动 ============================ */
-  function scrollToTarget(selector) {
-    var target = document.querySelector(selector);
-    if (!target) return;
-    target.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
-    try { history.replaceState(null, '', selector); } catch (e) { /* 忽略 */ }
-  }
-
-  $$('[data-scroll]').forEach(function (btn) {
-    btn.addEventListener('click', function () { scrollToTarget(btn.getAttribute('data-scroll')); });
-  });
-  $$('a[href^="#"]').forEach(function (link) {
-    link.addEventListener('click', function (event) {
-      var id = link.getAttribute('href');
-      if (!id || id === '#' || !document.querySelector(id)) return;
-      event.preventDefault();
-      scrollToTarget(id);
-    });
-  });
-
-  /* ============================ 顶栏吸顶 ============================ */
-  var topbar = $('#topbar');
-  if (topbar) {
-    var syncTopbar = function () { topbar.classList.toggle('is-stuck', window.scrollY > 12); };
-    syncTopbar();
-    window.addEventListener('scroll', syncTopbar, { passive: true });
-  }
-
-  /* ======================= 分区入场 + 指示高亮 ======================= */
-  var panels = $$('.panel');
-  var navLinks = $$('#sectionNav a');
-  var sections = $$('section[id]');
-
-  if ('IntersectionObserver' in window) {
-    var panelObserver = new IntersectionObserver(function (entries) {
-      entries.forEach(function (entry) {
-        if (entry.isIntersecting) entry.target.classList.add('is-in');
-      });
-    }, { rootMargin: '0px 0px -18% 0px', threshold: 0.18 });
-    panels.forEach(function (p) { panelObserver.observe(p); });
-
-    var navObserver = new IntersectionObserver(function (entries) {
-      entries.forEach(function (entry) {
-        if (!entry.isIntersecting) return;
-        var id = entry.target.id;
-        navLinks.forEach(function (link) {
-          link.classList.toggle('is-active', link.getAttribute('data-target') === id);
-        });
-      });
-    }, { rootMargin: '-45% 0px -45% 0px', threshold: 0 });
-    sections.forEach(function (s) { navObserver.observe(s); });
-  } else {
-    panels.forEach(function (p) { p.classList.add('is-in'); });
-    if (heroSection) heroSection.classList.add('is-in');
-  }
 })();

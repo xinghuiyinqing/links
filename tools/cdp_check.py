@@ -168,48 +168,38 @@ async def cmd_probe(argv):
             checks[key] = 'ERROR: %s: %s' % (type(exc).__name__, exc)
 
     await try_eval('title', 'document.title')
-    await try_eval('nav_items', "Array.from(document.querySelectorAll('#sectionNav .label')).map(e=>e.textContent.trim())")
-    await try_eval('panels', "Array.from(document.querySelectorAll('.panel-title')).map(e=>e.textContent.trim())")
+    await try_eval('entries', "Array.from(document.querySelectorAll('.entry-text b')).map(e=>e.textContent.trim())")
+    await try_eval('entry_count', "document.querySelectorAll('.entry').length")
     await try_eval('links', "Array.from(document.querySelectorAll('a[target=_blank]')).map(a=>a.href)")
-    await try_eval('panel_count', "document.querySelectorAll('.panel').length")
     await try_eval('qq_value', "document.getElementById('qqValue').textContent.trim()")
     await try_eval('h_overflow_px', "document.documentElement.scrollWidth - document.documentElement.clientWidth")
-    await try_eval('title_font', "getComputedStyle(document.querySelector('.t-main')).fontFamily")
+    await try_eval('v_overflow_px', "document.documentElement.scrollHeight - document.documentElement.clientHeight")
+    await try_eval('page_scrollable', "(()=>{const d=document.documentElement;return (d.scrollHeight>d.clientHeight+1)||(d.scrollWidth>d.clientWidth+1);})()")
+    await try_eval('no_extra_sections', "document.querySelectorAll('.panel, footer, .scroll-hint, .section-nav, .float-qq').length")
+    await try_eval('title_font', "getComputedStyle(document.querySelector('.stage-title')).fontFamily")
     await try_eval('page_bg', "getComputedStyle(document.body).backgroundColor")
-    await try_eval('btn_main_bg', "getComputedStyle(document.querySelector('.btn-main')).backgroundImage.slice(0,60)")
+    await try_eval('entries_layout', "getComputedStyle(document.querySelector('.entries')).flexDirection")
+    await try_eval('all_entries_in_viewport', """(()=>{
+        const vh=window.innerHeight, vw=window.innerWidth, bad=[];
+        document.querySelectorAll('.entry').forEach((el,i)=>{const r=el.getBoundingClientRect();
+          if(r.top<-1||r.bottom>vh+1||r.left<-1||r.right>vw+1) bad.push(i+':top='+Math.round(r.top)+',bottom='+Math.round(r.bottom)+',left='+Math.round(r.left)+',right='+Math.round(r.right));
+          if(r.width<40||r.height<40) bad.push(i+':size '+Math.round(r.width)+'x'+Math.round(r.height));});
+        return bad.length?('超出视口 '+bad.join(' | ')):('三个入口全部在 '+vw+'x'+vh+' 视口内');})()""")
     await try_eval('intro_present', "!!document.getElementById('intro')")
-    await try_eval('intro_visible', "(()=>{const i=document.getElementById('intro');return !!i && !i.classList.contains('is-gone') && getComputedStyle(i).opacity!=='0';})()")
-    await try_eval('intro_enter_btn', "!!document.getElementById('introEnter')")
-
-    # 开场动画：进度条是否在走
     await sleep(c, 1.0)
     await try_eval('intro_progress_text', "document.getElementById('introPct').textContent")
-    await try_eval('intro_bar_width', "document.getElementById('introBar').style.width")
-
-    # 点击进入 -> 开场退出、内容入场
     await try_eval('enter_click', "document.getElementById('introEnter').click(), 'clicked'")
-    await sleep(c, 1.6)
+    await sleep(c, 1.5)
     await try_eval('intro_after', "(()=>{const i=document.getElementById('intro');return 'classes='+i.className+' opacity='+getComputedStyle(i).opacity;})()")
     await try_eval('html_classes', "document.documentElement.className")
-    await try_eval('hero_opacity', "getComputedStyle(document.querySelector('.hero-inner')).opacity")
-
-    # 复制按钮（群聊分区）
+    await try_eval('stage_head_opacity', "getComputedStyle(document.querySelector('.stage-head')).opacity")
+    await try_eval('entry1_opacity', "getComputedStyle(document.querySelector('.entry')).opacity")
     await try_eval('copy_btn_found', "!!document.querySelector('[data-copy=\"1104108350\"]')")
     await try_eval('copy_click_fired', "document.querySelector('[data-copy=\"1104108350\"]').click(), 'clicked'")
     await sleep(c, 1.6)
     await try_eval('copy_toast_text', "document.getElementById('toast').textContent")
-    await try_eval('copy_btn_echo', "document.querySelector('[data-copy=\"1104108350\"] .btn-label').textContent.trim()")
     await sleep(c, 1.9)
-    await try_eval('copy_btn_restored', "document.querySelector('[data-copy=\"1104108350\"] .btn-label').textContent.trim()")
-
-    # 滚动 + 分区入场 + 指示高亮
-    await try_eval('anchor_click', "document.querySelector('#sectionNav a[data-target=\"buy\"]').click(), 'clicked'")
-    await sleep(c, 2.2)
-    await try_eval('scroll_y', "Math.round(window.scrollY)")
-    await try_eval('buy_in_view', "(function(){var r=document.getElementById('buy').getBoundingClientRect();return Math.round(r.top)+'px top';})()")
-    await try_eval('panel_revealed', "document.querySelectorAll('.panel.is-in').length + '/' + document.querySelectorAll('.panel').length")
-    await try_eval('nav_active', "(()=>{const a=document.querySelector('#sectionNav a.is-active');return a?a.getAttribute('data-target'):'none';})()")
-    await try_eval('topbar_stuck', "document.getElementById('topbar').classList.contains('is-stuck')")
+    await try_eval('copy_btn_restored', "document.querySelector('[data-copy=\"1104108350\"] .entry-text b').textContent.trim()")
     print(json.dumps(checks, ensure_ascii=False, indent=2))
     return checks
 
