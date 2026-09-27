@@ -1,48 +1,20 @@
 /* ==========================================================================
-   星绘引擎 · 交互脚本（原生 JS，无依赖）
-   - 明暗主题切换（记忆到 localStorage）
-   - 一键复制（Clipboard API + 降级方案）
-   - 顶栏吸顶态、滚动入场（IntersectionObserver）
-   所有外部数据都通过 data-* 注入，未使用 innerHTML，避免 XSS 面。
+   星绘引擎 · 资源门户 交互脚本（原生 JS，无依赖）
+   1) 开场动画：载入进度 → 品牌揭示 → 点击进入 → 内容分层入场
+   2) 一键复制（Clipboard API + 超时竞速 + execCommand 兜底）
+   3) 顶栏吸顶、分区滚动入场与右侧指示高亮、平滑滚动
    ========================================================================== */
 (function () {
   'use strict';
 
   var $ = function (sel, root) { return (root || document).querySelector(sel); };
   var $$ = function (sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); };
-
-  /* ---------------------------------------------------------------- 主题 */
-  var THEME_KEY = 'links-site-theme';
   var root = document.documentElement;
+  var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var params = { get: function () { return null; } };
+  try { params = new URLSearchParams(location.search); } catch (e) { /* 老浏览器忽略 */ }
 
-  function preferredTheme() {
-    // URL 显式指定优先（?theme=dark / light），便于分享固定配色与自动化截图
-    var forced = null;
-    try { forced = new URLSearchParams(location.search).get('theme'); } catch (e) { forced = null; }
-    if (forced === 'light' || forced === 'dark') return forced;
-    var saved = null;
-    try { saved = localStorage.getItem(THEME_KEY); } catch (e) { saved = null; }
-    if (saved === 'light' || saved === 'dark') return saved;
-    return window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
-  }
-
-  function applyTheme(theme) {
-    root.setAttribute('data-theme', theme);
-    var meta = $('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', theme === 'light' ? '#f3f5f9' : '#05070c');
-    try { localStorage.setItem(THEME_KEY, theme); } catch (e) { /* 隐私模式忽略 */ }
-  }
-
-  applyTheme(preferredTheme());
-
-  var themeBtn = $('#themeToggle');
-  if (themeBtn) {
-    themeBtn.addEventListener('click', function () {
-      applyTheme(root.getAttribute('data-theme') === 'light' ? 'dark' : 'light');
-    });
-  }
-
-  /* ---------------------------------------------------------------- Toast */
+  /* ============================== Toast ============================== */
   var toastEl = $('#toast');
   var toastTimer = null;
 
@@ -57,9 +29,83 @@
     }, variant === 'warn' ? 3200 : 2000);
   }
 
-  function toast(message) { showToast(message, 'ok'); }
+  /* ============================ 开场动画 ============================ */
+  var intro = $('#intro');
+  var bar = $('#introBar');
+  var pct = $('#introPct');
+  var enterBtn = $('#introEnter');
+  var skipBtn = $('#introSkip');
+  var barTimer = null;
+  var autoTimer = null;
+  var introDone = false;
+  var heroSection = $('#hero');
 
-  /* --------------------------------------------------------------- 复制 */
+  function setProgress(value) {
+    var v = Math.max(0, Math.min(100, Math.round(value)));
+    if (bar) bar.style.width = v + '%';
+    if (pct) pct.textContent = v + '%';
+  }
+
+  function revealAll() {
+    root.classList.remove('is-intro');
+    root.classList.add('is-ready');
+    if (heroSection) heroSection.classList.add('is-in');
+  }
+
+  function finishIntro() {
+    if (introDone) return;
+    introDone = true;
+    window.clearInterval(barTimer);
+    window.clearTimeout(autoTimer);
+    setProgress(100);
+    revealAll();
+    if (intro) {
+      intro.classList.add('is-done');
+      window.setTimeout(function () { intro.classList.add('is-gone'); }, reduceMotion ? 60 : 1000);
+      intro.setAttribute('aria-hidden', 'true');
+    }
+    try { sessionStorage.setItem('sde-intro-seen', '1'); } catch (e) { /* 隐私模式忽略 */ }
+  }
+
+  function runIntro() {
+    var force = params.get('intro');
+    var seen = false;
+    try { seen = sessionStorage.getItem('sde-intro-seen') === '1'; } catch (e) { seen = false; }
+
+    // ?intro=0 关闭开场；同一次会话内再次进入直接放行；系统开启"减少动态效果"时也跳过
+    var skipAll = force === '0' || (!force && seen) || reduceMotion;
+    if (skipAll || !intro) {
+      if (intro) intro.classList.add('is-gone');
+      introDone = true;
+      revealAll();
+      return;
+    }
+
+    var progress = 0;
+    // 先快后慢的载入节奏，约 1.5s 到 100%
+    barTimer = window.setInterval(function () {
+      var step = progress < 62 ? 7.5 : progress < 88 ? 3.4 : 1.1;
+      progress = Math.min(100, progress + step);
+      setProgress(progress);
+      if (progress >= 100) window.clearInterval(barTimer);
+    }, 85);
+
+    // 载入完成后自动放行（期间可随时点击进入 / 跳过 / 按 Esc）
+    autoTimer = window.setTimeout(finishIntro, 4200);
+  }
+
+  if (enterBtn) enterBtn.addEventListener('click', finishIntro);
+  if (skipBtn) skipBtn.addEventListener('click', finishIntro);
+  document.addEventListener('keydown', function (event) {
+    if (introDone) return;
+    if (event.key === 'Enter' || event.key === ' ' || event.key === 'Escape') {
+      event.preventDefault();
+      finishIntro();
+    }
+  });
+  runIntro();
+
+  /* ============================== 复制 ============================== */
   function legacyCopy(text) {
     var ta = document.createElement('textarea');
     ta.value = text;
@@ -76,8 +122,8 @@
     return ok;
   }
 
-  /* 兜底：Clipboard API 在无权限 / 非安全上下文 / 隐私模式下可能一直挂起，
-     所以加 900ms 竞速，超时立刻切 execCommand 方案，绝不让按钮卡死。 */
+  /* Clipboard API 在无权限 / 非安全上下文 / 隐私模式下可能一直挂起，
+     所以加 900ms 竞速，超时立刻切 execCommand，绝不让按钮卡死。 */
   function copyText(text) {
     if (navigator.clipboard && window.isSecureContext) {
       return new Promise(function (resolve) {
@@ -90,40 +136,9 @@
     return Promise.resolve(legacyCopy(text));
   }
 
-  $$('[data-copy]').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      var text = btn.getAttribute('data-copy') || '';
-      var label = btn.getAttribute('data-copy-label') || '内容';
-      if (!text) return;
-
-      copyText(text).then(function (ok) {
-        if (ok) {
-          showToast(label + '已复制：' + text, 'ok');
-          if (!btn.dataset.originalHtml) btn.dataset.originalHtml = btn.innerHTML;
-          var restored = false;
-          btn.textContent = '✓ 已复制';
-          window.setTimeout(function () {
-            if (restored) return;
-            restored = true;
-            btn.innerHTML = btn.dataset.originalHtml;
-          }, 1600);
-          return;
-        }
-        // 浏览器拒绝写入剪贴板（无手势/权限被拒/非 HTTPS）：明确告知 + 弹出可手动复制
-        showToast('复制被浏览器拦截，内容已在下方选中', 'warn');
-        selectText(text);
-        window.setTimeout(function () {
-          try { window.prompt('请长按选中后复制：', text); } catch (e) { /* 忽略 */ }
-        }, 60);
-      });
-    });
-  });
-
-  /* 用 range 选区把文本高亮出来，用户长按即可复制 */
   function selectText(text) {
     try {
       var range = document.createRange();
-      range.selectNodeContents(document.body);
       var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
       var node;
       while ((node = walker.nextNode())) {
@@ -141,58 +156,87 @@
     return false;
   }
 
-  /* ------------------------------------------------------------ 今日日期 */
-  var stamp = $('#stamp');
-  if (stamp) {
-    try {
-      stamp.textContent = new Intl.DateTimeFormat('zh-CN', { month: 'long', day: 'numeric' }).format(new Date());
-    } catch (e) {
-      stamp.textContent = new Date().toLocaleDateString();
-    }
+  $$('[data-copy]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var text = btn.getAttribute('data-copy') || '';
+      var label = btn.getAttribute('data-copy-label') || '内容';
+      if (!text) return;
+
+      copyText(text).then(function (ok) {
+        if (ok) {
+          showToast(label + '已复制：' + text, 'ok');
+          var labelEl = $('.btn-label', btn);
+          if (labelEl && !labelEl.dataset.original) {
+            labelEl.dataset.original = labelEl.innerHTML;
+            labelEl.textContent = '✓ 已复制';
+            window.setTimeout(function () {
+              labelEl.innerHTML = labelEl.dataset.original;
+            }, 1600);
+          }
+          return;
+        }
+        showToast('复制被浏览器拦截，内容已在页面中选中', 'warn');
+        selectText(text);
+        window.setTimeout(function () {
+          try { window.prompt('请长按选中后复制：', text); } catch (e) { /* 忽略 */ }
+        }, 60);
+      });
+    });
+  });
+
+  /* ============================ 平滑滚动 ============================ */
+  function scrollToTarget(selector) {
+    var target = document.querySelector(selector);
+    if (!target) return;
+    target.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+    try { history.replaceState(null, '', selector); } catch (e) { /* 忽略 */ }
   }
 
-  /* ------------------------------------------------------------ 顶栏吸顶 */
-  var topbar = $('.topbar');
+  $$('[data-scroll]').forEach(function (btn) {
+    btn.addEventListener('click', function () { scrollToTarget(btn.getAttribute('data-scroll')); });
+  });
+  $$('a[href^="#"]').forEach(function (link) {
+    link.addEventListener('click', function (event) {
+      var id = link.getAttribute('href');
+      if (!id || id === '#' || !document.querySelector(id)) return;
+      event.preventDefault();
+      scrollToTarget(id);
+    });
+  });
+
+  /* ============================ 顶栏吸顶 ============================ */
+  var topbar = $('#topbar');
   if (topbar) {
-    var syncTopbar = function () {
-      topbar.classList.toggle('is-stuck', window.scrollY > 8);
-    };
+    var syncTopbar = function () { topbar.classList.toggle('is-stuck', window.scrollY > 12); };
     syncTopbar();
     window.addEventListener('scroll', syncTopbar, { passive: true });
   }
 
-  /* ------------------------------------------------------------ 滚动入场 */
-  var revealTargets = $$('.notice .steps li, .section-head, .hero-stats');
-  revealTargets.forEach(function (el) { el.setAttribute('data-reveal', ''); });
+  /* ======================= 分区入场 + 指示高亮 ======================= */
+  var panels = $$('.panel');
+  var navLinks = $$('#sectionNav a');
+  var sections = $$('section[id]');
 
-  if ('IntersectionObserver' in window && revealTargets.length) {
-    var io = new IntersectionObserver(function (entries) {
+  if ('IntersectionObserver' in window) {
+    var panelObserver = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) entry.target.classList.add('is-in');
+      });
+    }, { rootMargin: '0px 0px -18% 0px', threshold: 0.18 });
+    panels.forEach(function (p) { panelObserver.observe(p); });
+
+    var navObserver = new IntersectionObserver(function (entries) {
       entries.forEach(function (entry) {
         if (!entry.isIntersecting) return;
-        var el = entry.target;
-        var index = revealTargets.indexOf(el);
-        el.style.transitionDelay = Math.min(index, 6) * 60 + 'ms';
-        el.classList.add('is-in');
-        io.unobserve(el);
+        var id = entry.target.id;
+        navLinks.forEach(function (link) {
+          link.classList.toggle('is-active', link.getAttribute('data-target') === id);
+        });
       });
-    }, { rootMargin: '0px 0px -12% 0px', threshold: 0.15 });
-
-    revealTargets.forEach(function (el) { io.observe(el); });
+    }, { rootMargin: '-45% 0px -45% 0px', threshold: 0 });
+    sections.forEach(function (s) { navObserver.observe(s); });
   } else {
-    revealTargets.forEach(function (el) { el.classList.add('is-in'); });
+    panels.forEach(function (p) { p.classList.add('is-in'); });
+    if (heroSection) heroSection.classList.add('is-in');
   }
-
-  /* ------------------------------------------------ 平滑锚点（老浏览器兜底） */
-  $$('a[href^="#"]').forEach(function (link) {
-    link.addEventListener('click', function (event) {
-      var id = link.getAttribute('href').slice(1);
-      if (!id) return;
-      var target = document.getElementById(id);
-      if (!target) return;
-      event.preventDefault();
-      var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      target.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
-      try { history.replaceState(null, '', '#' + id); } catch (e) { /* 忽略 */ }
-    });
-  });
 })();

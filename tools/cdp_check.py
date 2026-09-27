@@ -112,17 +112,36 @@ async def sleep(c, seconds):
 
 async def cmd_shots(argv):
     url = argv[argv.index('--url') + 1]
+    if '--new-session' in argv:
+        await (await open_page()).call('Network.clearBrowserCookies')
     outdir = argv[argv.index('--out') + 1]
     specs = argv[argv.index('--spec') + 1].split(',')
     os.makedirs(outdir, exist_ok=True)
     c = await open_page()
     results = []
+    hold_intro = '--hold-intro' in argv
     for spec in specs:
         dims, theme, name = spec.split(':')
         w, h = (int(x) for x in dims.split('x'))
         mobile = w < 700
-        await goto(c, url, w, h, mobile, theme)
-        size = await screenshot(c, os.path.join(outdir, name))
+        # 每次截图前清掉会话标记，保证开场动画可复现
+        await goto(c, url, w, h, mobile, theme, wait=1.2 if hold_intro else 2.0)
+        if hold_intro:
+            try:
+                await c.call('Runtime.evaluate', {'expression': "(function(){try{sessionStorage.removeItem('sde-intro-seen')}catch(e){};location.replace('/index.html?intro=1&fresh='+Date.now());return 1})()", 'returnByValue': True})
+                await asyncio.sleep(2.2)
+            except Exception as exc:
+                print('intro replay skipped:', exc, file=sys.stderr)
+        if not hold_intro:
+            try:
+                await c.call('Runtime.evaluate', {'expression': "document.getElementById('introEnter') && document.getElementById('introEnter').click()", 'returnByValue': True})
+                await asyncio.sleep(1.4)
+                # 逐屏滚动一遍，触发各分区的 IntersectionObserver 入场
+                await c.call('Runtime.evaluate', {'expression': "(function(){var s=document.querySelectorAll('section[id]');var y=0;for(var i=1;i<s.length;i++){s[i].scrollIntoView();}window.scrollTo(0,0);return s.length})()", 'returnByValue': True})
+                await asyncio.sleep(2.0)
+            except Exception as exc:
+                print('intro dismiss skipped:', exc, file=sys.stderr)
+        size = await screenshot(c, os.path.join(outdir, name), full=not hold_intro)
         results.append({'file': name, 'viewport': dims, 'theme': theme, 'bytes': size})
         print('SHOT %-16s %-10s %-6s %7d bytes' % (name, dims, theme, size))
     await c.call('Emulation.clearDeviceMetricsOverride')
@@ -149,44 +168,48 @@ async def cmd_probe(argv):
             checks[key] = 'ERROR: %s: %s' % (type(exc).__name__, exc)
 
     await try_eval('title', 'document.title')
-    await try_eval('cards', "Array.from(document.querySelectorAll('.card h3')).map(h=>h.textContent.trim())")
+    await try_eval('nav_items', "Array.from(document.querySelectorAll('#sectionNav .label')).map(e=>e.textContent.trim())")
+    await try_eval('panels', "Array.from(document.querySelectorAll('.panel-title')).map(e=>e.textContent.trim())")
     await try_eval('links', "Array.from(document.querySelectorAll('a[target=_blank]')).map(a=>a.href)")
-    await try_eval('cardcount', "document.querySelectorAll('.card').length")
+    await try_eval('panel_count', "document.querySelectorAll('.panel').length")
     await try_eval('qq_value', "document.getElementById('qqValue').textContent.trim()")
-    await try_eval('card_radius', "getComputedStyle(document.querySelector('.card')).borderRadius")
-    await try_eval('font_status', "document.fonts ? document.fonts.status : 'n/a'")
     await try_eval('h_overflow_px', "document.documentElement.scrollWidth - document.documentElement.clientWidth")
-    await try_eval('title_font', "getComputedStyle(document.querySelector('.hero-title')).fontFamily")
-    await try_eval('bg_color', "getComputedStyle(document.body).backgroundColor")
+    await try_eval('title_font', "getComputedStyle(document.querySelector('.t-main')).fontFamily")
+    await try_eval('page_bg', "getComputedStyle(document.body).backgroundColor")
+    await try_eval('btn_main_bg', "getComputedStyle(document.querySelector('.btn-main')).backgroundImage.slice(0,60)")
+    await try_eval('intro_present', "!!document.getElementById('intro')")
+    await try_eval('intro_visible', "(()=>{const i=document.getElementById('intro');return !!i && !i.classList.contains('is-gone') && getComputedStyle(i).opacity!=='0';})()")
+    await try_eval('intro_enter_btn', "!!document.getElementById('introEnter')")
 
-    # 复制按钮：点击 -> 轮询 toast 文本与按钮回显
+    # 开场动画：进度条是否在走
+    await sleep(c, 1.0)
+    await try_eval('intro_progress_text', "document.getElementById('introPct').textContent")
+    await try_eval('intro_bar_width', "document.getElementById('introBar').style.width")
+
+    # 点击进入 -> 开场退出、内容入场
+    await try_eval('enter_click', "document.getElementById('introEnter').click(), 'clicked'")
+    await sleep(c, 1.6)
+    await try_eval('intro_after', "(()=>{const i=document.getElementById('intro');return 'classes='+i.className+' opacity='+getComputedStyle(i).opacity;})()")
+    await try_eval('html_classes', "document.documentElement.className")
+    await try_eval('hero_opacity', "getComputedStyle(document.querySelector('.hero-inner')).opacity")
+
+    # 复制按钮（群聊分区）
     await try_eval('copy_btn_found', "!!document.querySelector('[data-copy=\"1104108350\"]')")
     await try_eval('copy_click_fired', "document.querySelector('[data-copy=\"1104108350\"]').click(), 'clicked'")
     await sleep(c, 1.6)
     await try_eval('copy_toast_text', "document.getElementById('toast').textContent")
-    await try_eval('copy_toast_visible', "document.getElementById('toast').classList.contains('is-on')")
-    await try_eval('copy_btn_echo', "document.querySelector('[data-copy=\"1104108350\"]').textContent.trim()")
+    await try_eval('copy_btn_echo', "document.querySelector('[data-copy=\"1104108350\"] .btn-label').textContent.trim()")
     await sleep(c, 1.9)
-    await try_eval('copy_btn_restored', "document.querySelector('[data-copy=\"1104108350\"]').textContent.trim()")
-    await try_eval('clipboard_readback', "navigator.clipboard && navigator.clipboard.readText ? 'api-present' : 'no-api'")
+    await try_eval('copy_btn_restored', "document.querySelector('[data-copy=\"1104108350\"] .btn-label').textContent.trim()")
 
-    # 主题切换
-    await try_eval('theme_before', "document.documentElement.getAttribute('data-theme')")
-    await try_eval('theme_click', "document.getElementById('themeToggle').click(), 'clicked'")
-    await sleep(c, 0.5)
-    await try_eval('theme_after', "document.documentElement.getAttribute('data-theme') + ' | ls=' + localStorage.getItem('links-site-theme')")
-    await try_eval('theme_click_back', "document.getElementById('themeToggle').click(), 'clicked'")
-    await sleep(c, 0.5)
-    await try_eval('theme_restored', "document.documentElement.getAttribute('data-theme')")
-
-    # 锚点滚动 + 滚动入场
-    await try_eval('scroll_before', "Math.round(window.scrollY)")
-    await try_eval('anchor_click', "document.querySelector('a[href=\"#buy\"]').click(), 'clicked'")
-    await sleep(c, 1.4)
-    await try_eval('scroll_after', "Math.round(window.scrollY)")
-    await try_eval('buy_in_view', "(function(){var r=document.getElementById('buy').getBoundingClientRect();return Math.round(r.top)+'px top, h='+Math.round(r.height);})()")
-    await try_eval('reveal_applied', "document.querySelectorAll('[data-reveal].is-in').length + '/' + document.querySelectorAll('[data-reveal]').length")
-    await try_eval("dialogs_seen", "JSON.stringify(null)")
+    # 滚动 + 分区入场 + 指示高亮
+    await try_eval('anchor_click', "document.querySelector('#sectionNav a[data-target=\"buy\"]').click(), 'clicked'")
+    await sleep(c, 2.2)
+    await try_eval('scroll_y', "Math.round(window.scrollY)")
+    await try_eval('buy_in_view', "(function(){var r=document.getElementById('buy').getBoundingClientRect();return Math.round(r.top)+'px top';})()")
+    await try_eval('panel_revealed', "document.querySelectorAll('.panel.is-in').length + '/' + document.querySelectorAll('.panel').length")
+    await try_eval('nav_active', "(()=>{const a=document.querySelector('#sectionNav a.is-active');return a?a.getAttribute('data-target'):'none';})()")
+    await try_eval('topbar_stuck', "document.getElementById('topbar').classList.contains('is-stuck')")
     print(json.dumps(checks, ensure_ascii=False, indent=2))
     return checks
 
