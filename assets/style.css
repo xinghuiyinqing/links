@@ -97,10 +97,16 @@ body {
   inset: 0;
   z-index: -1;
   background:
-    radial-gradient(52rem 34rem at 12% -8%, color-mix(in oklab, var(--accent) 26%, transparent), transparent 70%),
-    radial-gradient(40rem 30rem at 96% 4%, color-mix(in oklab, var(--violet) 22%, transparent), transparent 72%),
-    radial-gradient(46rem 32rem at 50% 108%, color-mix(in oklab, var(--amber) 14%, transparent), transparent 70%);
-  opacity: 0.85;
+    radial-gradient(58rem 38rem at 10% -12%, color-mix(in oklab, var(--accent) 42%, transparent), transparent 68%),
+    radial-gradient(44rem 32rem at 98% 2%, color-mix(in oklab, var(--violet) 38%, transparent), transparent 70%),
+    radial-gradient(52rem 36rem at 50% 112%, color-mix(in oklab, var(--amber) 22%, transparent), transparent 70%),
+    radial-gradient(30rem 20rem at 82% 46%, color-mix(in oklab, var(--accent) 16%, transparent), transparent 72%);
+}
+[data-theme="light"] .page-backdrop {
+  background:
+    radial-gradient(52rem 34rem at 8% -10%, color-mix(in oklab, var(--accent) 20%, transparent), transparent 70%),
+    radial-gradient(42rem 30rem at 98% 2%, color-mix(in oklab, var(--violet) 18%, transparent), transparent 72%),
+    radial-gradient(48rem 32rem at 50% 114%, color-mix(in oklab, var(--amber) 14%, transparent), transparent 72%);
 }
 .page-backdrop::after {
   content: "";
@@ -110,10 +116,9 @@ body {
     linear-gradient(to right, var(--border) 1px, transparent 1px),
     linear-gradient(to bottom, var(--border) 1px, transparent 1px);
   background-size: 72px 72px;
-  mask-image: radial-gradient(80% 60% at 50% 20%, #000 10%, transparent 78%);
-  opacity: 0.5;
+  mask-image: radial-gradient(84% 62% at 50% 16%, #000 8%, transparent 76%);
+  opacity: 0.75;
 }
-[data-theme="light"] .page-backdrop { opacity: 0.5; }
 
 img, svg { display: block; max-width: 100%; }
 a { color: inherit; text-decoration: none; }
@@ -326,15 +331,16 @@ h1, h2, h3 {
   justify-content: center;
   gap: 0.5rem;
   min-height: 46px;
-  padding: 0.66rem 1.15rem;
+  padding: 0.66rem 0.95rem;
   border: 1px solid var(--btn-bd);
   border-radius: var(--r-md);
   background: var(--btn-bg);
   color: var(--btn-fg);
   font-family: var(--font-body);
-  font-size: 0.95rem;
+  font-size: 0.92rem;
   font-weight: 500;
   cursor: pointer;
+  white-space: nowrap;
   overflow: hidden;
   isolation: isolate;
   transition: transform 0.2s var(--ease), box-shadow 0.24s var(--ease), border-color 0.24s var(--ease), background 0.24s var(--ease);
@@ -387,6 +393,8 @@ h1, h2, h3 {
 }
 
 .card {
+  container-type: inline-size;
+  container-name: card;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -473,6 +481,7 @@ h1, h2, h3 {
   margin-top: auto;
   padding-top: clamp(0.6rem, 2.2vw, 0.9rem);
   display: grid;
+  grid-template-columns: 1fr;
   gap: 0.55rem;
 }
 
@@ -503,7 +512,7 @@ h1, h2, h3 {
 .notice h2 { font-size: var(--fs-h2); margin-bottom: clamp(0.9rem, 3vw, 1.3rem); }
 .steps {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  grid-template-columns: 1fr;
   gap: var(--gap);
   margin: 0;
   padding: 0;
@@ -569,6 +578,10 @@ h1, h2, h3 {
   transition: transform 0.24s var(--ease), box-shadow 0.24s var(--ease);
 }
 .float-qq svg { width: 1.2rem; height: 1.2rem; }
+@media (max-width: 30rem) {
+  .float-qq { padding: 0.6rem; width: 52px; justify-content: center; }
+  .float-qq span { display: none; }
+}
 .float-qq:hover { transform: translateY(-3px) scale(1.02); }
 
 /* -------------------------------- Toast -------------------------------- */
@@ -595,6 +608,10 @@ h1, h2, h3 {
   transition: opacity 0.26s var(--ease), translate 0.26s var(--ease);
 }
 .toast.is-on { opacity: 1; translate: 0 0; }
+.toast.is-warn {
+  border-color: color-mix(in oklab, var(--amber) 60%, transparent);
+  background: color-mix(in oklab, var(--amber) 22%, var(--ink-700));
+}
 
 /* ------------------------------ 动效关键帧 ------------------------------ */
 @keyframes rise {
@@ -619,11 +636,18 @@ h1, h2, h3 {
 @media (min-width: 48rem) {
   .topnav { display: flex; }
   .theme-toggle { margin-inline-start: 0.35rem; }
-  .card-actions { grid-template-columns: 1.15fr 1fr; }
+}
+/* 只有卡片足够宽时才把两个按钮并排，否则竖排更干净 */
+@container card (min-width: 17rem) {
+  .card-actions { grid-template-columns: 1.18fr 1fr; }
 }
 @media (min-width: 64rem) {
   .hero { padding-block: 6rem 3rem; }
   .cards { grid-template-columns: repeat(3, 1fr); }
+}
+
+@media (min-width: 34rem) {
+  .steps { grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); }
 }
 
 /* 悬停效果只在真有指针的设备上启用 */

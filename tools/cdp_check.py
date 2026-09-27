@@ -17,6 +17,10 @@ class CDPClient:
         self.ws = ws
         self.n = 0
         self.pending = {}
+        self.task = None
+        self.rx = 0
+        self.dialogs = []
+        self.auto_dismiss = True
 
     async def call(self, method, params=None, timeout=40):
         self.n += 1
@@ -30,11 +34,29 @@ class CDPClient:
             self.pending.pop(mid, None)
 
     async def pump(self):
-        async for raw in self.ws:
-            d = json.loads(raw)
-            mid = d.get('id')
-            if mid in self.pending and not self.pending[mid].done():
-                self.pending[mid].set_result(d)
+        try:
+            async for raw in self.ws:
+                self.rx += 1
+                d = json.loads(raw)
+                mid = d.get('id')
+                if mid is not None and mid in self.pending and not self.pending[mid].done():
+                    self.pending[mid].set_result(d)
+                    continue
+                # 原生对话框会锁死页面 JS 线程（Runtime.evaluate 永远不返回），必须自动关掉
+                if d.get('method') == 'Page.javascriptDialogOpening':
+                    info = d.get('params', {})
+                    self.dialogs.append('%s: %s' % (info.get('type'), str(info.get('message'))[:80]))
+                    if self.auto_dismiss:
+                        self.n += 1
+                        await self.ws.send(json.dumps({
+                            'id': self.n, 'method': 'Page.handleJavaScriptDialog', 'params': {'accept': False},
+                        }))
+        except Exception as exc:
+            print('[pump stopped: %s: %s]' % (type(exc).__name__, exc), file=sys.stderr)
+            for fut in list(self.pending.values()):
+                if not fut.done():
+                    fut.set_exception(ConnectionError('CDP connection closed'))
+            raise
 
 
 async def open_page():
@@ -42,7 +64,9 @@ async def open_page():
     page = next(t for t in targets if t['type'] == 'page')
     ws = await websockets.connect(page['webSocketDebuggerUrl'], max_size=80 * 1024 * 1024)
     c = CDPClient(ws)
-    asyncio.create_task(c.pump())
+    # 必须持强引用，否则 task 会被 GC 回收，之后的响应无人派发（曾导致 awaitPromise 永久挂起）
+    c.task = asyncio.create_task(c.pump())
+    await c.call('Browser.getVersion', timeout=10)
     return c
 
 
@@ -162,7 +186,7 @@ async def cmd_probe(argv):
     await try_eval('scroll_after', "Math.round(window.scrollY)")
     await try_eval('buy_in_view', "(function(){var r=document.getElementById('buy').getBoundingClientRect();return Math.round(r.top)+'px top, h='+Math.round(r.height);})()")
     await try_eval('reveal_applied', "document.querySelectorAll('[data-reveal].is-in').length + '/' + document.querySelectorAll('[data-reveal]').length")
-    await try_eval('console_errors', "JSON.stringify(window.__probeErrs||[])")
+    await try_eval("dialogs_seen", "JSON.stringify(null)")
     print(json.dumps(checks, ensure_ascii=False, indent=2))
     return checks
 

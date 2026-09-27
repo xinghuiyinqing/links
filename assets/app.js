@@ -16,6 +16,10 @@
   var root = document.documentElement;
 
   function preferredTheme() {
+    // URL 显式指定优先（?theme=dark / light），便于分享固定配色与自动化截图
+    var forced = null;
+    try { forced = new URLSearchParams(location.search).get('theme'); } catch (e) { forced = null; }
+    if (forced === 'light' || forced === 'dark') return forced;
     var saved = null;
     try { saved = localStorage.getItem(THEME_KEY); } catch (e) { saved = null; }
     if (saved === 'light' || saved === 'dark') return saved;
@@ -42,15 +46,18 @@
   var toastEl = $('#toast');
   var toastTimer = null;
 
-  function toast(message) {
+  function showToast(message, variant) {
     if (!toastEl) return;
     toastEl.textContent = message;
+    toastEl.classList.toggle('is-warn', variant === 'warn');
     toastEl.classList.add('is-on');
     window.clearTimeout(toastTimer);
     toastTimer = window.setTimeout(function () {
       toastEl.classList.remove('is-on');
-    }, 2000);
+    }, variant === 'warn' ? 3200 : 2000);
   }
+
+  function toast(message) { showToast(message, 'ok'); }
 
   /* --------------------------------------------------------------- 复制 */
   function legacyCopy(text) {
@@ -91,7 +98,7 @@
 
       copyText(text).then(function (ok) {
         if (ok) {
-          toast(label + '已复制：' + text);
+          showToast(label + '已复制：' + text, 'ok');
           if (!btn.dataset.originalHtml) btn.dataset.originalHtml = btn.innerHTML;
           var restored = false;
           btn.textContent = '✓ 已复制';
@@ -100,12 +107,39 @@
             restored = true;
             btn.innerHTML = btn.dataset.originalHtml;
           }, 1600);
-        } else {
-          window.prompt('自动复制被浏览器拦截，请手动复制：', text);
+          return;
         }
+        // 浏览器拒绝写入剪贴板（无手势/权限被拒/非 HTTPS）：明确告知 + 弹出可手动复制
+        showToast('复制被浏览器拦截，内容已在下方选中', 'warn');
+        selectText(text);
+        window.setTimeout(function () {
+          try { window.prompt('请长按选中后复制：', text); } catch (e) { /* 忽略 */ }
+        }, 60);
       });
     });
   });
+
+  /* 用 range 选区把文本高亮出来，用户长按即可复制 */
+  function selectText(text) {
+    try {
+      var range = document.createRange();
+      range.selectNodeContents(document.body);
+      var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      var node;
+      while ((node = walker.nextNode())) {
+        var idx = node.nodeValue.indexOf(text);
+        if (idx >= 0) {
+          range.setStart(node, idx);
+          range.setEnd(node, idx + text.length);
+          var sel = window.getSelection();
+          sel.removeAllRanges();
+          sel.addRange(range);
+          return true;
+        }
+      }
+    } catch (e) { /* 选区失败不影响主流程 */ }
+    return false;
+  }
 
   /* ------------------------------------------------------------ 今日日期 */
   var stamp = $('#stamp');
