@@ -128,7 +128,7 @@ async def cmd_shots(argv):
         await goto(c, url, w, h, mobile, theme, wait=1.2 if hold_intro else 2.0)
         if hold_intro:
             try:
-                await c.call('Runtime.evaluate', {'expression': "(function(){try{sessionStorage.removeItem('sde-intro-seen')}catch(e){};location.replace('/index.html?intro=1&fresh='+Date.now());return 1})()", 'returnByValue': True})
+                await c.call('Runtime.evaluate', {'expression': "(function(){try{sessionStorage.removeItem('sde-intro-seen')}catch(e){};location.replace(location.pathname+'?intro=1&fresh='+Date.now());return 1})()", 'returnByValue': True})
                 await asyncio.sleep(2.2)
             except Exception as exc:
                 print('intro replay skipped:', exc, file=sys.stderr)
