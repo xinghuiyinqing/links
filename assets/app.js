@@ -184,4 +184,32 @@
     });
   });
 
+  /* ====================== 一键下载最新内核 ====================== */
+  /*  站点是纯静态的, 版本号和体积每次发版都会变, 所以运行时拉一个很小的
+      .d/v.txt 来更新按钮上那行小字。格式:  <版本> <字节数>
+                                             1.8 12653186
+      拉不到就保持 HTML 里写死的"最新版", 不影响点击下载。 */
+  var dlEntry = $('#dlEntry');
+  var dlVer = $('#dlVer');
+  var dlVerText = '';
+
+  if (dlVer) {
+    fetch('.d/v.txt', { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.text() : ''; })
+      .then(function (text) {
+        var m = /(\S+)\s+(\d+)/.exec(text || '');
+        if (!m) return;
+        var mb = (parseInt(m[2], 10) / 1048576).toFixed(1);
+        dlVerText = 'v' + m[1];
+        dlVer.textContent = dlVerText + ' · ' + mb + ' MB';
+      })
+      .catch(function () { /* 离线 / 被拦 -> 保留默认文案 */ });
+  }
+
+  if (dlEntry) {
+    dlEntry.addEventListener('click', function () {
+      showToast(dlVerText ? ('开始下载 ' + dlVerText + ' …') : '开始下载最新版 …', 'ok');
+    });
+  }
+
 })();
