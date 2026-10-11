@@ -379,3 +379,40 @@ html.is-ready .entries > *:nth-child(3) { animation-delay: 0.36s; }
   html.is-intro .stage-head, html.is-intro .entries > * { opacity: 1; }
   .bg-aurora, .bg-rays, .bg-embers { animation: none; }
 }
+
+/* ===== 下载入口 + 页脚小字 (一键下载最新内核) ===== */
+.stage-foot {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  margin-top: clamp(0.2rem, 0.9vh, 0.7rem);
+  font-size: clamp(0.68rem, 1.6vh, 0.8rem);
+  letter-spacing: 0.12em;
+  color: var(--text-mute);
+}
+.stage-foot a {
+  color: var(--text-mute);
+  text-decoration: none;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 1px;
+  transition: color 0.25s var(--ease), border-color 0.25s var(--ease);
+}
+.stage-foot a:hover,
+.stage-foot a:focus-visible { color: var(--gold-2); border-color: var(--line-strong); }
+.stage-foot .foot-dot { opacity: 0.55; }
+.stage-foot .foot-hint { opacity: 0.8; }
+
+/* 下载入口: 主按钮给一点点额外的金色呼吸, 但不喧宾夺主 */
+.entry--dl .entry-ico { color: var(--gold-2); }
+.entry--dl .entry-text em { color: var(--gold-1); letter-spacing: 0.14em; }
+
+html.is-intro .stage-foot { opacity: 0; }
+html.is-ready .stage-foot { animation: enter-up 0.85s var(--ease) 0.46s both; }
+
+@media (max-width: 30rem) {
+  .stage-foot { flex-wrap: wrap; row-gap: 0.3rem; letter-spacing: 0.06em; }
+  .stage-foot .foot-hint { flex-basis: 100%; text-align: center; opacity: 0.7; }
+}
