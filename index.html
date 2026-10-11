@@ -61,7 +61,10 @@
   </header>
 
   <nav class="entries" aria-label="站点入口">
-    <a class="entry" href="https://pan.quark.cn/s/dd3c3e5637be" target="_blank" rel="noopener noreferrer">
+    <!-- 一键下载最新内核: href 指向仓库里固定名字的那一份, 每次发版覆盖它,
+         所以这个链接永远是最新版, 页面本身不用改。同源, download 属性可直接改名。 -->
+    <a class="entry entry--dl" id="dlEntry" href=".d/nh_latest.sh" download="王牌竞速内核.sh"
+       rel="noopener" aria-label="一键下载最新内核">
       <span class="entry-shine" aria-hidden="true"></span>
       <span class="entry-ico" aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -70,7 +73,7 @@
       </span>
       <span class="entry-text">
         <b>辅助下载</b>
-        <em>Download</em>
+        <em id="dlVer">最新版</em>
       </span>
     </a>
 
@@ -102,6 +105,12 @@
       </span>
     </a>
   </nav>
+
+  <p class="stage-foot">
+    <a href="https://pan.quark.cn/s/dd3c3e5637be" target="_blank" rel="noopener noreferrer">网盘备用下载</a>
+    <span class="foot-dot" aria-hidden="true">·</span>
+    <span class="foot-hint">直装包 · 内置驱动 · 免解压</span>
+  </p>
 </main>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
