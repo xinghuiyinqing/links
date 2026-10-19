@@ -1,28 +1,32 @@
 /* ==========================================================================
-   星绘引擎 · 夜战 PIT WALL
+   星绘引擎 · GLASSKINETICS
    --------------------------------------------------------------------------
-   世界取自赛道夜间工位: 沥青、钠灯、计时板、冷显示器。
-   签名元素: 四块板立在后撤的赛道上, 整台跟着指针/陀螺仪做真 3D 视差。
-   其余一律克制 —— 只用细线、字距和一点点光。
+   背景是透明玻璃过山车（assets/coaster.js 手写的软件 3D），
+   UI 走白透玻璃 + 冷蓝调：面板是磨砂玻璃，强调色只给蓝，字是深海军蓝。
+   体积感来自三件事：内高光边、外投影、背景被 backdrop-filter 糊掉后的透光。
    ========================================================================== */
 
 :root {
-  /* 色板：来自夜间赛道工位 */
-  --void:    #07060a;   /* 沥青夜 */
-  --deck:    #0e0c12;   /* 控制台机体 */
-  --deck-2:  #16131d;   /* 板面基色：比背景亮一档，才立得起来 */
-  --amber:   #f2b23c;   /* 钠灯 / 计时板 */
-  --signal:  #e8402a;   /* 发车红灯 / 刹车灯，只给购卡用 */
-  --ice:     #afc0d2;   /* 冷显示器 */
-  --cream:   #f6f0e4;   /* 显示字 */
+  /* 天空与玻璃 */
+  --sky-0:    #f5fbff;
+  --sky-1:    #dcecff;
+  --glass:    rgba(255, 255, 255, .50);
+  --glass-2:  rgba(255, 255, 255, .68);
+  --glass-hi: rgba(255, 255, 255, .95);
+  --edge:     rgba(255, 255, 255, .92);
+  --edge-2:   rgba(150, 190, 235, .30);
 
-  --hair:    rgba(246, 240, 228, .16);
-  --hair-2:  rgba(246, 240, 228, .07);
-  --ink-dim: rgba(246, 240, 228, .52);
+  /* 蓝调 */
+  --blue:     #2f7fe0;
+  --blue-2:   #6fb0f2;
+  --blue-ink: #1b5fae;
+  --blue-mist: rgba(120, 176, 240, .22);
 
-  /* 字体：窄体拉丁做显示字，中文思源黑，数据等宽 */
-  --f-disp: "Barlow Condensed", "Oswald", "Roboto Condensed",
-            "sans-serif-condensed", "Arial Narrow", system-ui, sans-serif;
+  /* 文字 */
+  --ink:      #0f2b48;
+  --ink-2:    #3a5f83;
+  --ink-dim:  #6d8caa;
+
   --f-body: "Noto Sans SC", system-ui, -apple-system, "PingFang SC",
             "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
   --f-mono: "JetBrains Mono", ui-monospace, "Roboto Mono", "Droid Sans Mono", monospace;
@@ -33,24 +37,24 @@
 }
 
 *, *::before, *::after { box-sizing: border-box; }
-
 html, body { height: 100%; }
 
 body {
   margin: 0;
-  background: var(--void);
-  color: var(--cream);
+  background: linear-gradient(180deg, var(--sky-0) 0%, var(--sky-1) 100%);
+  color: var(--ink);
   font-family: var(--f-body);
   -webkit-font-smoothing: antialiased;
-  overflow: hidden;                 /* 单屏机柜：不滚动 */
+  overflow: hidden;
   overscroll-behavior: none;
 }
 
 .skip {
   position: fixed; top: -100px; left: 12px; z-index: 90;
-  padding: .6rem 1rem; border-radius: 8px;
-  background: var(--amber); color: #1a1206;
+  padding: .6rem 1rem; border-radius: 10px;
+  background: var(--blue); color: #fff;
   font-weight: 700; text-decoration: none;
+  box-shadow: 0 6px 20px rgba(47, 127, 224, .35);
   transition: top .2s var(--ease);
 }
 .skip:focus { top: 12px; }
@@ -58,53 +62,26 @@ body {
 /* ============================== 背景 ============================== */
 .bg { position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
 
-.bg-sky {
+#coaster {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  display: block;
+}
+
+/* 一层极淡的光晕，把过山车压到 UI 后面，保证文字可读 */
+.bg-veil {
   position: absolute; inset: 0;
   background:
-    radial-gradient(120% 78% at 50% 4%, #15101c 0%, transparent 54%),
-    radial-gradient(90% 60% at 50% 46%, rgba(0, 0, 0, .55) 0%, transparent 70%),
-    radial-gradient(70% 46% at 50% 100%, rgba(242, 178, 60, .17) 0%, transparent 70%),
-    linear-gradient(180deg, #0a0812 0%, #07060a 62%, #050408 100%);
+    radial-gradient(120% 70% at 50% 34%, rgba(255,255,255,.40) 0%, rgba(255,255,255,.10) 46%, transparent 72%),
+    linear-gradient(180deg, rgba(255,255,255,.34) 0%, transparent 26%, transparent 72%, rgba(226,240,255,.5) 100%);
 }
 
-/* 后撤赛道：rotateX 的平面，网格缓慢往观者方向流 */
-.bg-track {
-  position: absolute; left: -12%; right: -12%; bottom: -4%;
-  height: 70vh;
-  perspective: 260px;
-  perspective-origin: 50% 0%;
-  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 26%, #000 62%, transparent 100%);
-  mask-image: linear-gradient(180deg, transparent 0%, #000 26%, #000 62%, transparent 100%);
-  opacity: .8;
-  transition: opacity .4s var(--ease);
-}
-.bg-track .grid {
-  position: absolute; inset: 0;
-  transform-origin: 50% 0;
-  transform: rotateX(76deg);
-  background-image:
-    repeating-linear-gradient(90deg, rgba(242, 178, 60, .30) 0 1px, transparent 1px 16.6%),
-    repeating-linear-gradient(0deg, rgba(242, 178, 60, .18) 0 1px, transparent 1px 92px);
-  animation: trackFlow 3.4s linear infinite;
-}
-@keyframes trackFlow { to { background-position: 0 0, 0 92px; } }
-
-/* 指针落在板子上 -> 赛道流得更快, 像车在逼近 */
-body.is-engaged .bg-track { opacity: 1; }
-body.is-engaged .bg-track .grid { animation-duration: 1.05s; }
-
-.bg-haze {
-  position: absolute; left: 50%; bottom: -18vh;
-  width: 130vw; height: 56vh; transform: translateX(-50%);
-  background: radial-gradient(closest-side, rgba(242, 178, 60, .13), transparent 72%);
-  filter: blur(28px);
-}
-
+/* 细腻颗粒，避免大面积渐变出现色带 */
 .bg-grain {
   position: absolute; inset: -50%;
-  opacity: .3;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E");
-  mix-blend-mode: overlay;
+  opacity: .14;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='.42'/%3E%3C/svg%3E");
+  mix-blend-mode: soft-light;
 }
 
 /* ============================== 舞台 / 机柜 ============================== */
@@ -116,8 +93,8 @@ body.is-engaged .bg-track .grid { animation-duration: 1.05s; }
     calc(env(safe-area-inset-right) + clamp(.8rem, 3vw, 2.4rem))
     calc(env(safe-area-inset-bottom) + clamp(.7rem, 2.4vh, 1.6rem))
     calc(env(safe-area-inset-left) + clamp(.8rem, 3vw, 2.4rem));
-  perspective: 1500px;
-  perspective-origin: 50% 42%;
+  perspective: 1600px;
+  perspective-origin: 50% 44%;
 }
 
 .deck {
@@ -129,41 +106,40 @@ body.is-engaged .bg-track .grid { animation-duration: 1.05s; }
   gap: clamp(.55rem, 2vh, 1.4rem);
   transform-style: preserve-3d;
   transform: rotateX(var(--rx)) rotateY(var(--ry));
-  /* 阻尼交给 JS 的 rAF, 这里不要再过渡, 否则双重平滑会发黏 */
   will-change: transform;
 }
 
 /* ============================== 品牌 ============================== */
-.brand { text-align: center; transform: translateZ(28px); }
+.brand { text-align: center; transform: translateZ(30px); }
 
 .kicker {
-  margin: 0 0 .18em;
+  margin: 0 0 .2em;
   display: inline-flex; align-items: center; gap: .5em;
   font-family: var(--f-mono);
   font-size: clamp(.6rem, 1.5vh, .72rem);
   letter-spacing: .34em; text-indent: .34em;
-  color: var(--amber);
+  color: var(--blue-ink);
   text-transform: uppercase;
 }
 .kicker .dot {
   width: 6px; height: 6px; border-radius: 50%;
-  background: var(--amber);
-  box-shadow: 0 0 10px 2px rgba(242, 178, 60, .7);
-  animation: pulse 2.4s var(--ease) infinite;
+  background: var(--blue);
+  box-shadow: 0 0 0 3px rgba(47, 127, 224, .16), 0 0 12px rgba(47, 127, 224, .55);
+  animation: pulse 3s var(--ease) infinite;
 }
-@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .28; } }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
 
 .title {
   margin: 0;
-  font-family: var(--f-body);
   font-weight: 700;
   font-size: clamp(1.9rem, 5.6vh, 3.4rem);
   line-height: 1;
   letter-spacing: .14em; text-indent: .14em;
-  background: linear-gradient(180deg, #fffaf0 8%, var(--cream) 44%, #c9bda4 100%);
+  background: linear-gradient(180deg, #2f7fe0 0%, #1b5fae 52%, #12457f 100%);
   -webkit-background-clip: text; background-clip: text;
   color: transparent;
-  text-shadow: 0 0 40px rgba(242, 178, 60, .30), 0 0 110px rgba(242, 178, 60, .14);
+  filter: drop-shadow(0 2px 10px rgba(255, 255, 255, .9))
+          drop-shadow(0 6px 24px rgba(47, 127, 224, .18));
 }
 
 .sub {
@@ -173,36 +149,33 @@ body.is-engaged .bg-track .grid { animation-duration: 1.05s; }
   letter-spacing: .18em;
   color: var(--ink-dim);
 }
-.sub span { color: var(--amber); }
+.sub span { color: var(--blue-ink); font-weight: 600; }
 
-/* ============================== 发车牌 ============================== */
+/* ============================== 玻璃珠（入场序列） ============================== */
 .lights {
   display: flex; justify-content: center; gap: clamp(.5rem, 1.6vw, .8rem);
-  transform: translateZ(16px);
+  transform: translateZ(18px);
 }
 .lights i {
-  width: clamp(15px, 3.4vh, 22px); height: clamp(15px, 3.4vh, 22px);
+  width: clamp(14px, 3.1vh, 20px); height: clamp(14px, 3.1vh, 20px);
   border-radius: 50%;
-  border: 1px solid var(--hair);
-  background: #16121a;
-  animation: treeRed .12s linear forwards;
+  background: radial-gradient(circle at 34% 28%, #ffffff 0%, rgba(190,220,255,.9) 42%, rgba(120,175,235,.75) 100%);
+  box-shadow:
+    inset 0 -2px 4px rgba(90, 140, 200, .35),
+    inset 0 1px 2px rgba(255, 255, 255, .95),
+    0 2px 8px rgba(60, 120, 190, .22);
+  opacity: .38;
+  animation: bead .34s var(--ease) forwards;
 }
-.lights i:nth-child(2) { animation-delay: .10s; }
-.lights i:nth-child(3) { animation-delay: .20s; }
-.lights i:nth-child(4) { animation-delay: .30s; }
-.lights i:nth-child(5) { animation-delay: .40s; }
-@keyframes treeRed {
-  to { background: var(--signal); border-color: var(--signal);
-       box-shadow: 0 0 14px 1px rgba(232, 64, 42, .8); }
-}
-.lights.is-green i {
-  animation: treeGreen .3s var(--ease) forwards;
-  background: var(--amber); border-color: var(--amber);
-  box-shadow: 0 0 20px 2px rgba(242, 178, 60, .9);
-}
-@keyframes treeGreen { to { opacity: .34; box-shadow: none; } }
+.lights i:nth-child(2) { animation-delay: .09s; }
+.lights i:nth-child(3) { animation-delay: .18s; }
+.lights i:nth-child(4) { animation-delay: .27s; }
+.lights i:nth-child(5) { animation-delay: .36s; }
+@keyframes bead { to { opacity: 1; } }
+.lights.is-green i { animation: beadOn .5s var(--ease) forwards; }
+@keyframes beadOn { to { opacity: .5; } }
 
-/* ============================== 四块板 ============================== */
+/* ============================== 四块玻璃板 ============================== */
 .plates {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -213,35 +186,24 @@ body.is-engaged .bg-track .grid { animation-duration: 1.05s; }
 }
 
 .plate {
-  --accent: var(--amber);
+  --accent: var(--blue);
   position: relative;
   display: grid;
   grid-template-rows: auto 1fr;
   gap: clamp(.4rem, 1.2vh, .8rem);
   padding: clamp(.75rem, 2.2vh, 1.35rem);
   min-height: 0;
-  border-radius: 14px;
-  border: 1px solid var(--hair);
+  border-radius: 20px;
+  border: 1px solid var(--edge);
   background:
-    /* 顶部灯带：每块板自己的强调色，像计时板上那条光 */
-    linear-gradient(90deg,
-      var(--accent) 0%,
-      color-mix(in oklab, var(--accent) 55%, transparent) 26%,
-      transparent 62%) left top / 100% 3px no-repeat,
-    radial-gradient(130% 62% at 50% 0%, color-mix(in oklab, var(--accent) 13%, transparent) 0%, transparent 72%),
-    /* 板面：上半受光、下半沉下去，才有厚度 */
-    linear-gradient(166deg,
-      rgba(255, 255, 255, .115) 0%,
-      rgba(255, 255, 255, .042) 38%,
-      rgba(0, 0, 0, .22) 78%,
-      rgba(0, 0, 0, .34) 100%),
-    var(--deck-2);
+    linear-gradient(158deg, rgba(255,255,255,.66) 0%, rgba(255,255,255,.40) 44%, rgba(228,241,255,.50) 100%);
+  backdrop-filter: blur(26px) saturate(190%);
+  -webkit-backdrop-filter: blur(26px) saturate(190%);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, .10),
-    inset 0 0 0 1px rgba(0, 0, 0, .38),
-    0 1px 0 rgba(255, 255, 255, .04),
-    0 26px 50px -22px rgba(0, 0, 0, 1),
-    0 0 60px -26px color-mix(in oklab, var(--accent) 40%, transparent);
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    inset 0 -1px 0 rgba(150, 190, 235, .30),
+    0 10px 30px -12px rgba(60, 120, 190, .38),
+    0 2px 6px rgba(70, 130, 200, .10);
   color: inherit;
   font: inherit;
   text-align: left;
@@ -250,45 +212,43 @@ body.is-engaged .bg-track .grid { animation-duration: 1.05s; }
   overflow: hidden;
   -webkit-tap-highlight-color: transparent;
   transform: translateZ(0);
-  transition: transform .38s var(--ease), border-color .38s var(--ease),
-              box-shadow .38s var(--ease);
+  transition: transform .38s var(--ease), box-shadow .38s var(--ease),
+              border-color .38s var(--ease), background .38s var(--ease);
 }
 
-/* 光扫：hover/focus 时跑一次 */
+/* 顶部一道冷蓝灯带 —— 保留上一版骨架，换成浅色 */
+.plate::after {
+  content: "";
+  position: absolute; left: 0; right: 0; top: 0; height: 3px;
+  background: linear-gradient(90deg, var(--accent) 0%,
+              color-mix(in oklab, var(--accent) 40%, transparent) 34%, transparent 72%);
+  opacity: .8;
+}
+/* 光扫 */
 .plate::before {
   content: "";
   position: absolute; inset: 0;
   border-radius: inherit;
-  background: linear-gradient(115deg, transparent 34%, rgba(242, 178, 60, .20) 50%, transparent 66%);
+  background: linear-gradient(115deg, transparent 34%, rgba(255,255,255,.75) 50%, transparent 66%);
   background-size: 240% 100%;
   background-position: 130% 0;
   opacity: 0;
   pointer-events: none;
 }
-/* 左下角仪表角标 */
-.plate::after {
-  content: "";
-  position: absolute; left: 12px; bottom: 12px;
-  width: 16px; height: 16px;
-  border-left: 1px solid var(--accent);
-  border-bottom: 1px solid var(--accent);
-  opacity: .38;
-  pointer-events: none;
-  transition: opacity .3s var(--ease);
-}
 
-.plate-top {
-  display: flex; align-items: center; justify-content: space-between; gap: .6rem;
-}
+.plate-top { display: flex; align-items: center; justify-content: space-between; gap: .6rem; }
+
 .plate-ico {
   display: grid; place-items: center;
   width: clamp(30px, 6.2vh, 38px); height: clamp(30px, 6.2vh, 38px);
-  border-radius: 10px;
-  border: 1px solid var(--hair-2);
-  background: linear-gradient(160deg, color-mix(in oklab, var(--accent) 20%, transparent), rgba(255, 255, 255, .03));
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.95);
+  background: linear-gradient(160deg, rgba(255,255,255,.95), rgba(214,234,255,.75));
+  box-shadow: 0 3px 10px rgba(70, 130, 200, .18), inset 0 1px 0 #fff;
   color: var(--accent);
 }
 .plate-ico svg { width: 58%; height: 58%; }
+
 .plate-tag {
   font-family: var(--f-mono);
   font-size: clamp(.56rem, 1.4vh, .66rem);
@@ -297,31 +257,25 @@ body.is-engaged .bg-track .grid { animation-duration: 1.05s; }
 }
 
 .plate-body {
-  display: flex; flex-direction: column;
-  justify-content: center;          /* 内容块居中，板子再高也不会中段空一大片 */
-  gap: .26em;
-  min-width: 0;
+  display: flex; flex-direction: column; justify-content: center;
+  gap: .26em; min-width: 0;
 }
-/* 真实数据值：每块板自己的关键数字，撑起中段也带信息 */
 .plate-value {
   font-family: var(--f-mono);
   font-weight: 600;
   font-size: clamp(.92rem, 2.55vh, 1.32rem);
   line-height: 1.1;
   letter-spacing: .01em;
-  color: var(--accent);
+  color: var(--blue-ink);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .plate-name {
-  font-family: var(--f-body);
   font-weight: 700;
   font-size: clamp(1.02rem, 2.9vh, 1.5rem);
   letter-spacing: .08em;
   line-height: 1.15;
-  color: var(--cream);
-  /* 中文默认可以在任意两字之间折行 —— 那会断成"内核版本下 / 载"这种。
-     keep-all 禁止在汉字间折行，只在 HTML 里写的 <wbr> 处断，断点才可控 */
-  word-break: keep-all;
+  color: var(--ink);
+  word-break: keep-all;         /* 断点只在 HTML 里写的 <wbr> 处 */
 }
 .plate-note {
   font-family: var(--f-mono);
@@ -340,58 +294,60 @@ body.is-engaged .bg-track .grid { animation-duration: 1.05s; }
   transition: opacity .3s var(--ease), transform .3s var(--ease);
 }
 
-/* 强调色：购卡给红灯，其余钠灯/冷光 */
-.plate--dl  { --accent: var(--amber); }
-.plate--pan { --accent: var(--ice); }
-.plate--grp { --accent: var(--ice); }
-.plate--buy { --accent: var(--signal); }
-.plate--buy .plate-tag { color: rgba(232, 64, 42, .8); }
+/* 每块板的强调色 */
+.plate--dl  { --accent: #2f7fe0; }
+.plate--pan { --accent: #56a8ee; }
+.plate--grp { --accent: #3f95e8; }
+.plate--buy { --accent: #1b5fae; }
 
-/* 真 3D 抬升：只在真指针设备上做 */
+/* 入场：一块一块从纵深里浮出。fill 用 backwards，结束后不占用 transform */
+@keyframes plateIn {
+  from { opacity: 0; transform: translateZ(-120px) translateY(22px) scale(.97); }
+  to   { opacity: 1; transform: translateZ(0) translateY(0) scale(1); }
+}
+.plate { animation: plateIn .68s var(--ease) backwards; }
+.plate:nth-child(1) { animation-delay: .06s; }
+.plate:nth-child(2) { animation-delay: .14s; }
+.plate:nth-child(3) { animation-delay: .22s; }
+.plate:nth-child(4) { animation-delay: .30s; }
+
+/* 悬停：只有真指针设备才抬升 */
 @media (hover: hover) and (pointer: fine) {
   .plate:hover {
-    transform: translateZ(58px);
-    border-color: color-mix(in oklab, var(--accent) 55%, transparent);
+    transform: translateZ(62px);
+    border-color: rgba(255, 255, 255, 1);
+    background:
+      linear-gradient(158deg, rgba(255,255,255,.94) 0%, rgba(240,248,255,.72) 44%, rgba(216,236,255,.78) 100%);
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, .10),
-      0 32px 60px -28px rgba(0, 0, 0, 1),
-      0 0 0 1px color-mix(in oklab, var(--accent) 26%, transparent),
-      0 0 46px -12px color-mix(in oklab, var(--accent) 42%, transparent);
+      inset 0 1px 0 #fff,
+      inset 0 -1px 0 rgba(150, 190, 235, .3),
+      0 26px 54px -20px rgba(47, 127, 224, .45),
+      0 0 0 1px color-mix(in oklab, var(--accent) 32%, transparent),
+      0 0 46px -10px color-mix(in oklab, var(--accent) 45%, transparent);
   }
   .plate:hover::before { opacity: 1; animation: sweep .95s var(--ease) forwards; }
-  .plate:hover::after { opacity: .85; }
   .plate:hover .plate-arrow { opacity: 1; transform: translateX(0); }
 }
 @keyframes sweep { from { background-position: 130% 0; } to { background-position: -130% 0; } }
 
-/* 入场：一块一块从纵深里浮出来。fill 用 backwards，
-   动画结束后不再占用 transform，否则会盖掉 hover 的抬升 */
-@keyframes plateIn {
-  from { opacity: 0; transform: translateZ(-110px) translateY(20px); }
-  to   { opacity: 1; transform: translateZ(0) translateY(0); }
-}
-.plate { animation: plateIn .62s var(--ease) backwards; }
-.plate:nth-child(1) { animation-delay: .05s; }
-.plate:nth-child(2) { animation-delay: .12s; }
-.plate:nth-child(3) { animation-delay: .19s; }
-.plate:nth-child(4) { animation-delay: .26s; }
-
-/* 按下反馈：触屏没有 hover，靠这个给出"按到了"的确定感 */
+/* 按下反馈：触屏唯一的反馈通道 */
 .plate:active {
-  transform: translateZ(24px) scale(.982);
-  border-color: color-mix(in oklab, var(--accent) 60%, transparent);
+  transform: translateZ(26px) scale(.982);
+  border-color: color-mix(in oklab, var(--accent) 55%, white);
+  box-shadow:
+    inset 0 1px 0 #fff,
+    0 8px 22px -10px rgba(47, 127, 224, .5);
 }
 .plate:active::before { opacity: 1; animation: sweep .55s var(--ease) forwards; }
-.plate:active::after { opacity: .85; }
 
-/* 键盘焦点不受 hover 条件限制，任何设备都要看得见 */
+/* 键盘焦点不受媒体查询限制 */
 .plate:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--blue);
   outline-offset: 3px;
-  border-color: color-mix(in oklab, var(--accent) 60%, transparent);
+  border-color: color-mix(in oklab, var(--accent) 55%, white);
 }
 
-/* ============================== 底部遥测条 ============================== */
+/* ============================== 底部条 ============================== */
 .strip {
   display: flex; align-items: center; justify-content: center;
   gap: clamp(.6rem, 2.2vw, 1.6rem);
@@ -400,15 +356,15 @@ body.is-engaged .bg-track .grid { animation-duration: 1.05s; }
   font-size: clamp(.56rem, 1.4vh, .68rem);
   letter-spacing: .12em;
   color: var(--ink-dim);
-  transform: translateZ(14px);
+  transform: translateZ(16px);
 }
 .strip-i { display: inline-flex; align-items: center; gap: .45em; }
-.strip b { color: var(--cream); font-weight: 600; }
-.strip-url { color: rgba(175, 192, 210, .55); }
+.strip b { color: var(--ink-2); font-weight: 600; }
+.strip-url { color: rgba(80, 130, 180, .75); }
 .led {
   width: 6px; height: 6px; border-radius: 50%;
-  background: #4ade80;
-  box-shadow: 0 0 9px 1px rgba(74, 222, 128, .85);
+  background: #34c77b;
+  box-shadow: 0 0 0 3px rgba(52, 199, 123, .16), 0 0 10px rgba(52, 199, 123, .6);
 }
 
 /* ============================== Toast ============================== */
@@ -419,24 +375,23 @@ body.is-engaged .bg-track .grid { animation-duration: 1.05s; }
   max-width: min(92vw, 30rem);
   padding: .7rem 1.15rem;
   border-radius: 999px;
-  border: 1px solid var(--hair);
-  background: rgba(14, 12, 18, .92);
-  backdrop-filter: blur(14px) saturate(1.4);
-  -webkit-backdrop-filter: blur(14px) saturate(1.4);
-  color: var(--cream);
+  border: 1px solid var(--edge);
+  background: rgba(255, 255, 255, .88);
+  backdrop-filter: blur(18px) saturate(170%);
+  -webkit-backdrop-filter: blur(18px) saturate(170%);
+  box-shadow: 0 12px 34px -12px rgba(47, 127, 224, .40), inset 0 1px 0 #fff;
+  color: var(--ink);
   font-size: .86rem;
-  letter-spacing: .02em;
   text-align: center;
   opacity: 0;
   transition: transform .32s var(--ease), opacity .32s var(--ease);
   pointer-events: none;
 }
 .toast.is-on { transform: translate(-50%, 0); opacity: 1; }
-.toast.is-warn { border-color: rgba(232, 64, 42, .55); }
+.toast.is-warn { border-color: rgba(224, 122, 47, .55); color: #8a4a10; }
 
-/* ============================== 横屏：四块并排 ============================== */
+/* ============================== 横屏 ============================== */
 @media (min-aspect-ratio: 1/1) {
-  .bg-track { height: 52vh; opacity: .52; }
   .plates { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .brand { text-align: left; }
   .lights { justify-content: flex-start; }
@@ -444,13 +399,12 @@ body.is-engaged .bg-track .grid { animation-duration: 1.05s; }
   .title { font-size: clamp(1.7rem, 7.2vh, 3rem); }
 }
 
-/* 大屏横屏：别让板子被拉成 300x667 的瘦条，给高度封顶并整体居中 */
 @media (min-aspect-ratio: 1/1) and (min-height: 560px) {
   .deck { height: auto; align-content: center; }
   .deck > .plates { grid-auto-rows: clamp(12.5rem, 44vh, 19rem); }
 }
 
-/* 矮横屏（手机横放 844x390）：全部压扁，四块仍要一屏可见 */
+/* 矮横屏（手机横放） */
 @media (max-height: 470px) {
   .deck { gap: .32rem; grid-template-rows: auto minmax(0, 1fr) auto; }
   .lights { display: none; }
@@ -458,21 +412,32 @@ body.is-engaged .bg-track .grid { animation-duration: 1.05s; }
   .kicker { display: none; }
   .sub { margin: 0; }
   .title { font-size: clamp(1.35rem, 6vh, 2rem); }
-  .plate { padding: .55rem .7rem; border-radius: 11px; }
-  .plate-ico { width: 26px; height: 26px; border-radius: 8px; }
+  .plate { padding: .55rem .7rem; border-radius: 14px; }
+  .plate-ico { width: 26px; height: 26px; border-radius: 9px; }
   .plate-name { font-size: clamp(.9rem, 3.6vh, 1.15rem); }
   .plate-note { font-size: .58rem; }
-  .plate-arrow, .plate::after { display: none; }
+  .plate-arrow { display: none; }
   .strip { font-size: .56rem; }
   .strip-url { display: none; }
 }
 
-/* 竖屏窄板：名字放小一点点，保证"插件/直装下载"这种 7 字名字也能一行放下 */
+/* 竖屏：四块板靠下站住，上面把空间让给过山车 —— 否则轨道全被板子盖住 */
+@media (max-aspect-ratio: 1/1) {
+  .plates { align-self: end; }
+  .plate { min-height: clamp(9rem, 21.5vh, 13rem); }
+  .deck { grid-template-rows: auto auto minmax(0, 1fr) auto; }
+}
+
+/* 横屏也留一点上方空间给轨道 */
+@media (min-aspect-ratio: 1/1) {
+  .plates { align-self: end; }
+  .plate { min-height: clamp(8.5rem, 40vh, 17rem); }
+}
+
+/* 竖屏窄板：名字收一点，7 字也能一行 */
 @media (max-aspect-ratio: 1/1) and (max-width: 480px) {
   .plate-name { font-size: clamp(.95rem, 2.32vh, 1.27rem); }
 }
-
-/* 超窄竖屏 */
 @media (max-width: 360px) {
   .plate-note { font-size: .55rem; }
 }
@@ -481,7 +446,6 @@ body.is-engaged .bg-track .grid { animation-duration: 1.05s; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; }
   .deck { transform: none !important; transition: none; }
-  .bg-track .grid { animation: none; }
-  .lights i { background: var(--amber); border-color: var(--amber); box-shadow: none; }
   .plate { transition: none; animation: none; }
+  .lights i { opacity: 1; }
 }
