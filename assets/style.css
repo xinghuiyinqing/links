@@ -8,8 +8,8 @@
 
 :root {
   /* 天空与玻璃 */
-  --sky-0:    #f5fbff;
-  --sky-1:    #dcecff;
+  --sky-0:    #f8fafc;
+  --sky-1:    #e9eff5;
   --glass:    rgba(255, 255, 255, .50);
   --glass-2:  rgba(255, 255, 255, .68);
   --glass-hi: rgba(255, 255, 255, .95);
@@ -41,7 +41,7 @@ html, body { height: 100%; }
 
 body {
   margin: 0;
-  background: linear-gradient(180deg, var(--sky-0) 0%, var(--sky-1) 100%);
+  background: linear-gradient(180deg, var(--sky-0) 0%, var(--sky-1) 100%);  /* 中性冷灰白，不是蓝 */
   color: var(--ink);
   font-family: var(--f-body);
   -webkit-font-smoothing: antialiased;
@@ -66,14 +66,6 @@ body {
   position: absolute; inset: 0;
   width: 100%; height: 100%;
   display: block;
-}
-
-/* 一层极淡的光晕，把过山车压到 UI 后面，保证文字可读 */
-.bg-veil {
-  position: absolute; inset: 0;
-  background:
-    radial-gradient(120% 70% at 50% 34%, rgba(255,255,255,.40) 0%, rgba(255,255,255,.10) 46%, transparent 72%),
-    linear-gradient(180deg, rgba(255,255,255,.34) 0%, transparent 26%, transparent 72%, rgba(226,240,255,.5) 100%);
 }
 
 /* 细腻颗粒，避免大面积渐变出现色带 */
