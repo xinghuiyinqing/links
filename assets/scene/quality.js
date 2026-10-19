@@ -188,8 +188,26 @@ export function createQualityMonitor(initialTier, onDowngrade) {
 }
 
 /* -------------------------------------------------------------- DPR 计算 */
+/* ★ canvas 像素预算（不是 DPR 预算）。
+   实测边界（perf-qa 多轮 + 我这边的受控采样）：
+     1440×900 @dpr1 = 1.30 Mpx → 13.9ms 档（PASS）
+     390×844  @dpr2 = 1.32 Mpx → 13.9ms 档（PASS）
+     412×915  @dpr2 = 1.51 Mpx → 20.8ms 档（FAIL，超 0.2ms）
+     1920×1080@dpr1 = 2.07 Mpx → 20.8~35ms（FAIL）
+   → 1.35 Mpx 是这台 Intel UHD 的填充率分水岭。按像素总量回收 DPR，
+     比"按档砍粒子数"精准得多：粒子数对填充率影响很小，画面面积才是主因。 */
+const PIXEL_BUDGET = 1.35e6;
+
 export function dprFor(tierName) {
   const cap = tierOf(tierName).dprCap;
   const raw = (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
-  return clamp(raw, 1, cap);
+  /* 不要为了"至少 1"而硬撑：1920×1080 在核显上必须降到 1 以下才达标 */
+  let d = Math.min(raw, cap);
+  if (typeof window !== 'undefined') {
+    const w = window.innerWidth || 1280;
+    const h = window.innerHeight || 720;
+    const budget = Math.sqrt(PIXEL_BUDGET / Math.max(1, w * h));
+    if (budget < d) d = Math.max(0.8, budget);   /* 0.8 是画质下限，再低就明显糊 */
+  }
+  return d;
 }
