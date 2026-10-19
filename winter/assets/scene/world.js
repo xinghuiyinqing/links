@@ -79,7 +79,11 @@ export function createWorld(renderer, scene, tierName, tier) {
     );
     envScene.add(envGround);
     envRT = pmrem.fromScene(envScene, 0, 1, 200);
-    scene.environment = envRT.texture;
+    /* 环境贴图只留给需要金属反光的少数材质：全局 scene.environment 会让
+     所有 MeshStandardMaterial 都走 IBL 分支（每像素贵一大截），而车体/客车
+     占了画面三分之一以上的像素 —— 本机 Intel UHD 核显在这里直接掉帧。
+     改成不挂全局环境，靠 3 盏灯 + 高光把金属感做出来。 */
+  scene.environment = null;
     scene.environmentIntensity = 0.9;
     envSky.geometry.dispose();
     envGround.geometry.dispose();

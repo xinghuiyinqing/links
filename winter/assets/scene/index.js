@@ -311,11 +311,11 @@ function boot() {
     camera = new THREE.PerspectiveCamera(30, 1, 1.2, 900);
 
     /* ---- 三个灯（契约上限：hemisphere + directional + point 头灯） ---- */
-    hemi = new THREE.HemisphereLight(0xf4f8fb, 0xc6d6e3, 1.25);
+    hemi = new THREE.HemisphereLight(0xf4f8fb, 0xc6d6e3, 3.10);
     hemi.position.set(0, 20, 0);
     scene.add(hemi);
 
-    sun = new THREE.DirectionalLight(0xffffff, 1.05);
+    sun = new THREE.DirectionalLight(0xffffff, 1.55);
     sun.position.set(-26, 34, 30);
     sun.target.position.set(0, 2, 0);
     scene.add(sun);
@@ -612,8 +612,8 @@ function frame(now) {
   steam.update(S, dtSec);
 
   /* ---- 环境光与头灯跟着曝光呼吸 ---- */
-  hemi.intensity = 1.25 * S.exposure;
-  sun.intensity = 1.05 * S.exposure;
+  hemi.intensity = 3.10 * S.exposure;
+  sun.intensity = 1.55 * S.exposure;
   if (train) train.setExposure(S.exposure);
   if (snow) snow.setExposure(S.exposure);
   if (steam) steam.setExposure(S.exposure);
