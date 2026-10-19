@@ -1,26 +1,90 @@
 /* ==========================================================================
-   星绘引擎 · 资源门户 交互脚本（原生 JS，无依赖）
-   1) 开场动画：载入进度 → 品牌揭示 → 点击进入 → 内容分层入场
-   2) 一键复制（Clipboard API + 超时竞速 + execCommand 兜底）
-   3) 极简单屏版：无需滚动与分区逻辑
+   星绘引擎 · 夜战 PIT WALL —— 交互脚本（原生 JS，零依赖）
+   1) 整台机柜跟着指针 / 陀螺仪做真 3D 视差
+   2) 发车牌：红灯依次亮起再转绿（0.85s，纯装饰，不挡点击）
+   3) 版本号从 .d/v.txt 读，填进标题和下载板
+   4) 复制 QQ 群号（Clipboard API + 900ms 竞速 + execCommand 兜底）
    ========================================================================== */
 (function () {
   'use strict';
 
-  var $ = function (sel, root) { return (root || document).querySelector(sel); };
-  var $$ = function (sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); };
-  var root = document.documentElement;
-  var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  var params = { get: function () { return null; } };
-  try { params = new URLSearchParams(location.search); } catch (e) { /* 老浏览器忽略 */ }
+  var $ = function (s, r) { return (r || document).querySelector(s); };
+  var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
 
-  /* ============================== Toast ============================== */
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var body = document.body;
+
+  /* ============================ 1. 3D 视差 ============================ */
+  var deck = $('#deck');
+  var MAX_Y = 6.5;          // 左右最大偏转
+  var MAX_X = 4.5;          // 上下最大偏转（视觉上更收敛）
+  var curX = 0, curY = 0, tgtX = 0, tgtY = 0, raf = 0;
+
+  function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
+
+  function paint() {
+    raf = 0;
+    curX += (tgtX - curX) * 0.16;
+    curY += (tgtY - curY) * 0.16;
+    deck.style.setProperty('--rx', (-curY * MAX_X).toFixed(3) + 'deg');
+    deck.style.setProperty('--ry', (curX * MAX_Y).toFixed(3) + 'deg');
+    if (Math.abs(tgtX - curX) > 0.0005 || Math.abs(tgtY - curY) > 0.0005) {
+      raf = window.requestAnimationFrame(paint);
+    }
+  }
+  function aim(x, y) {          // x, y ∈ [-1, 1]
+    tgtX = clamp(x, -1, 1);
+    tgtY = clamp(y, -1, 1);
+    if (!raf) raf = window.requestAnimationFrame(paint);
+  }
+
+  if (deck && !reduce) {
+    window.addEventListener('pointermove', function (e) {
+      aim((e.clientX / window.innerWidth) * 2 - 1,
+          (e.clientY / window.innerHeight) * 2 - 1);
+    }, { passive: true });
+
+    // 指针离开窗口 -> 机柜回正
+    document.addEventListener('pointerleave', function () { aim(0, 0); });
+    window.addEventListener('blur', function () { aim(0, 0); });
+
+    // 手机陀螺仪：安卓直接可用；iOS 需用户授权，拿不到就静默忽略
+    window.addEventListener('deviceorientation', function (e) {
+      if (e.gamma === null || e.gamma === undefined) return;
+      aim(e.gamma / 28, (e.beta - 45) / 42);
+    }, { passive: true });
+  }
+
+  /* ============================ 2. 发车牌 ============================ */
+  var lights = $('#lights');
+  if (lights) {
+    window.setTimeout(function () { lights.classList.add('is-green'); }, 520);
+  }
+
+  /* ============================ 3. 版本号 ============================ */
+  var verText = $('#verText');
+  var dlNote = $('#dlNote');
+  var dlValue = $('#dlValue');
+  fetch('.d/v.txt', { cache: 'no-store' })
+    .then(function (r) { return r.ok ? r.text() : ''; })
+    .then(function (t) {
+      var m = /(\S+)\s+(\d+)/.exec(t || '');
+      if (!m) return;
+      var v = m[1];
+      var mb = (parseInt(m[2], 10) / 1048576).toFixed(1);
+      if (verText) verText.textContent = 'v' + v;
+      if (dlValue) dlValue.textContent = 'v' + v;
+      if (dlNote) dlNote.textContent = mb + ' MB · 直装';
+    })
+    .catch(function () { /* 拉不到就保留 HTML 里写死的 */ });
+
+  /* ============================ 4. Toast ============================ */
   var toastEl = $('#toast');
-  var toastTimer = null;
+  var toastTimer = 0;
 
-  function showToast(message, variant) {
+  function showToast(msg, variant) {
     if (!toastEl) return;
-    toastEl.textContent = message;
+    toastEl.textContent = msg;
     toastEl.classList.toggle('is-warn', variant === 'warn');
     toastEl.classList.add('is-on');
     window.clearTimeout(toastTimer);
@@ -29,83 +93,7 @@
     }, variant === 'warn' ? 3200 : 2000);
   }
 
-  /* ============================ 开场动画 ============================ */
-  var intro = $('#intro');
-  var bar = $('#introBar');
-  var pct = $('#introPct');
-  var enterBtn = $('#introEnter');
-  var skipBtn = $('#introSkip');
-  var barTimer = null;
-  var autoTimer = null;
-  var introDone = false;
-  var heroSection = $('#hero');
-
-  function setProgress(value) {
-    var v = Math.max(0, Math.min(100, Math.round(value)));
-    if (bar) bar.style.width = v + '%';
-    if (pct) pct.textContent = v + '%';
-  }
-
-  function revealAll() {
-    root.classList.remove('is-intro');
-    root.classList.add('is-ready');
-    if (heroSection) heroSection.classList.add('is-in');
-  }
-
-  function finishIntro() {
-    if (introDone) return;
-    introDone = true;
-    window.clearInterval(barTimer);
-    window.clearTimeout(autoTimer);
-    setProgress(100);
-    revealAll();
-    if (intro) {
-      intro.classList.add('is-done');
-      window.setTimeout(function () { intro.classList.add('is-gone'); }, reduceMotion ? 60 : 1000);
-      intro.setAttribute('aria-hidden', 'true');
-    }
-    try { sessionStorage.setItem('sde-intro-seen', '1'); } catch (e) { /* 隐私模式忽略 */ }
-  }
-
-  function runIntro() {
-    var force = params.get('intro');
-    var seen = false;
-    try { seen = sessionStorage.getItem('sde-intro-seen') === '1'; } catch (e) { seen = false; }
-
-    // ?intro=0 关闭开场；同一次会话内再次进入直接放行；系统开启"减少动态效果"时也跳过
-    var skipAll = force === '0' || (!force && seen) || reduceMotion;
-    if (skipAll || !intro) {
-      if (intro) intro.classList.add('is-gone');
-      introDone = true;
-      revealAll();
-      return;
-    }
-
-    var progress = 0;
-    // 先快后慢的载入节奏，约 1.5s 到 100%
-    barTimer = window.setInterval(function () {
-      var step = progress < 62 ? 7.5 : progress < 88 ? 3.4 : 1.1;
-      progress = Math.min(100, progress + step);
-      setProgress(progress);
-      if (progress >= 100) window.clearInterval(barTimer);
-    }, 85);
-
-    // 载入完成后自动放行（期间可随时点击进入 / 跳过 / 按 Esc）
-    autoTimer = window.setTimeout(finishIntro, 4200);
-  }
-
-  if (enterBtn) enterBtn.addEventListener('click', finishIntro);
-  if (skipBtn) skipBtn.addEventListener('click', finishIntro);
-  document.addEventListener('keydown', function (event) {
-    if (introDone) return;
-    if (event.key === 'Enter' || event.key === ' ' || event.key === 'Escape') {
-      event.preventDefault();
-      finishIntro();
-    }
-  });
-  runIntro();
-
-  /* ============================== 复制 ============================== */
+  /* ============================ 5. 复制 ============================ */
   function legacyCopy(text) {
     var ta = document.createElement('textarea');
     ta.value = text;
@@ -123,37 +111,18 @@
   }
 
   /* Clipboard API 在无权限 / 非安全上下文 / 隐私模式下可能一直挂起，
-     所以加 900ms 竞速，超时立刻切 execCommand，绝不让按钮卡死。 */
+     加 900ms 竞速，超时立刻切 execCommand，绝不让按钮卡死 */
   function copyText(text) {
     if (navigator.clipboard && window.isSecureContext) {
       return new Promise(function (resolve) {
         var settled = false;
-        var done = function (val) { if (!settled) { settled = true; resolve(val); } };
+        var done = function (v) { if (!settled) { settled = true; resolve(v); } };
         window.setTimeout(function () { done(legacyCopy(text)); }, 900);
-        navigator.clipboard.writeText(text).then(function () { done(true); }, function () { done(legacyCopy(text)); });
+        navigator.clipboard.writeText(text).then(function () { done(true); },
+                                                 function () { done(legacyCopy(text)); });
       });
     }
     return Promise.resolve(legacyCopy(text));
-  }
-
-  function selectText(text) {
-    try {
-      var range = document.createRange();
-      var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-      var node;
-      while ((node = walker.nextNode())) {
-        var idx = node.nodeValue.indexOf(text);
-        if (idx >= 0) {
-          range.setStart(node, idx);
-          range.setEnd(node, idx + text.length);
-          var sel = window.getSelection();
-          sel.removeAllRanges();
-          sel.addRange(range);
-          return true;
-        }
-      }
-    } catch (e) { /* 选区失败不影响主流程 */ }
-    return false;
   }
 
   $$('[data-copy]').forEach(function (btn) {
@@ -163,53 +132,47 @@
       if (!text) return;
 
       copyText(text).then(function (ok) {
-        if (ok) {
-          showToast(label + '已复制：' + text, 'ok');
-          var labelEl = $('.btn-label', btn) || $('.entry-text b', btn);
-          if (labelEl && !labelEl.dataset.original) {
-            labelEl.dataset.original = labelEl.innerHTML;
-            labelEl.textContent = '✓ 已复制';
-            window.setTimeout(function () {
-              labelEl.innerHTML = labelEl.dataset.original;
-            }, 1600);
+        if (!ok) {
+          // 复制被拦（非安全上下文 / 隐私模式 / 无权限）-> 直接打开加群页，别只丢一句报错
+          if (/^\d{5,}$/.test(text)) {
+            showToast('复制被拦截，正在打开加群页…', 'warn');
+            window.open('https://qm.qq.com/q/' + text, '_blank', 'noopener');
+          } else {
+            showToast('复制被浏览器拦截：' + text, 'warn');
           }
           return;
         }
-        showToast('复制被浏览器拦截，内容已在页面中选中', 'warn');
-        selectText(text);
-        window.setTimeout(function () {
-          try { window.prompt('请长按选中后复制：', text); } catch (e) { /* 忽略 */ }
-        }, 60);
+        showToast(label + '已复制：' + text);
+        var note = $('.plate-note', btn);
+        if (note && !note.dataset.origin) {
+          note.dataset.origin = note.textContent;
+          note.textContent = '已复制 ✓';
+          window.setTimeout(function () {
+            if (note.dataset.origin) note.textContent = note.dataset.origin;
+          }, 1600);
+        }
       });
     });
   });
 
-  /* ====================== 一键下载最新内核 ====================== */
-  /*  站点是纯静态的, 版本号和体积每次发版都会变, 所以运行时拉一个很小的
-      .d/v.txt 来更新按钮上那行小字。格式:  <版本> <字节数>
-                                             1.8 12653186
-      拉不到就保持 HTML 里写死的"最新版", 不影响点击下载。 */
-  var dlEntry = $('#dlEntry');
-  var dlVer = $('#dlVer');
-  var dlVerText = '';
-
-  if (dlVer) {
-    fetch('.d/v.txt', { cache: 'no-store' })
-      .then(function (r) { return r.ok ? r.text() : ''; })
-      .then(function (text) {
-        var m = /(\S+)\s+(\d+)/.exec(text || '');
-        if (!m) return;
-        var mb = (parseInt(m[2], 10) / 1048576).toFixed(1);
-        dlVerText = 'v' + m[1];
-        dlVer.textContent = dlVerText + ' · ' + mb + ' MB';
-      })
-      .catch(function () { /* 离线 / 被拦 -> 保留默认文案 */ });
-  }
-
-  if (dlEntry) {
-    dlEntry.addEventListener('click', function () {
-      showToast(dlVerText ? ('开始下载 ' + dlVerText + ' …') : '开始下载最新版 …', 'ok');
+  /* ==================== 6. 指针落在板上 -> 赛道加速 ==================== */
+  var plates = $('#plates');
+  if (plates) {
+    plates.addEventListener('pointerenter', function () { body.classList.add('is-engaged'); });
+    plates.addEventListener('pointerleave', function () { body.classList.remove('is-engaged'); });
+    var lt = 0;
+    plates.addEventListener('pointerover', function () {
+      body.classList.add('is-engaged');
+      window.clearTimeout(lt);
+      lt = window.setTimeout(function () { body.classList.remove('is-engaged'); }, 900);
     });
   }
+
+  /* ==================== 7. 触屏点击的轻微下沉 ==================== */
+  $$('.plate').forEach(function (p) {
+    p.addEventListener('touchstart', function () { p.style.transform = 'translateZ(18px) scale(.985)'; }, { passive: true });
+    p.addEventListener('touchend', function () { p.style.transform = ''; }, { passive: true });
+    p.addEventListener('touchcancel', function () { p.style.transform = ''; }, { passive: true });
+  });
 
 })();
