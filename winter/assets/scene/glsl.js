@@ -118,6 +118,7 @@ ${GLSL_NOISE}
 uniform float uTime;
 uniform float uExposure;
 uniform float uSparkle;
+uniform vec4  uRipple;    // x = 中心 x, y = 半径, z = 强度, w = 中心 z
 uniform vec3  uSnowLit;
 uniform vec3  uSnowShade;
 uniform vec3  uHorizon;
@@ -188,6 +189,16 @@ void main(){
      背光雪堆压到 ≈#AEBDC8、受光雪堆顶到 ≈#F6F8FA，正好落在色板的
      #c6d6e3 / #b9c9d8 ←→ #f4f8fb 之间。 */
   col *= 0.87 + 0.19 * duneS;
+
+  /* ---------------- 停稳瞬间的雪尘涟漪（一次性） --------------------
+     一圈由中心向外扩散的亮环，t=0→1.4s 半径 0→26，强度同步衰减。 */
+  if (uRipple.z > 0.001) {
+    float rd = length(vec2(p.x - uRipple.x, (p.y - uRipple.w) * 1.6));
+    float r0 = uRipple.y;
+    float ring = 1.0 - smoothstep(r0 * 0.72, r0, rd);
+    ring *= smoothstep(r0 * 0.30, r0 * 0.78, rd);
+    col += vec3(0.085, 0.095, 0.105) * ring * uRipple.z;
+  }
 
   /* 顶点色：雪地是纯白，只有轨道床那块几何用它画道砟 */
   col *= vTint;
@@ -300,9 +311,12 @@ uniform float uBoxY;        // 高度
 uniform float uBoxYMin;
 uniform float uBoxZ0;
 uniform float uBoxZ1;
+uniform vec3  uLampView;     // 车头灯在「视空间」的位置
+uniform float uLampCone;
 
 varying float vAlpha;
 varying float vSoft;
+varying float vLamp;
 
 void main(){
   float layer = aPar.w;
@@ -345,11 +359,30 @@ void main(){
   /* 太近的别糊在镜头上 */
   fade *= smoothstep(0.6, 2.2, depth);
 
+  /* 第 3 层 = 近景失焦散景：大、虚、极淡，只在镜头前 3~8 米飘过 */
+  if (layer > 2.5) {
+    vAlpha = fade * 0.16 * (0.55 + 0.45 * aSeed);
+    vSoft = 1.0;
+    /* 散景内部不做灯照 */
+    vLamp = 0.0;
+    gl_PointSize = clamp(sz * 3.4, 12.0, 190.0);
+    gl_Position = projectionMatrix * vec4(p, 1.0);
+    return;
+  }
+
   float layerGain = layer > 1.5 ? 1.0 : (layer > 0.5 ? 0.80 : 0.54);
   vAlpha = fade * layerGain * (0.74 + 0.26 * aSeed);
   /* 近景大雪花要更实，否则在浅色天空里完全看不见 */
   /* 近景大雪花：直接在浅色天空里也要数得出来 */
   vAlpha = mix(vAlpha, min(1.0, vAlpha * 1.9 + 0.30), step(1.5, layer));
+
+  /* 头灯体积光锥内的雪花被照亮：视空间里以灯口为顶点、沿 +x 张开的锥 */
+  vec3 rel = p - uLampView;
+  float along = rel.x;
+  float radial = length(rel.yz);
+  float cone = (1.0 - smoothstep(0.0, 1.0, radial / max(along * 0.30 + 0.18, 0.18)))
+             * step(0.0, along) * (1.0 - smoothstep(4.0, 13.0, along));
+  vLamp = clamp(cone, 0.0, 1.0) * uLampCone;
 
   gl_Position = projectionMatrix * vec4(p, 1.0);
 }
@@ -357,9 +390,11 @@ void main(){
 
 export const SNOW_FRAG = /* glsl */`
 uniform vec3 uColor;
+uniform vec3 uLampColor;
 uniform float uExposure;
 varying float vAlpha;
 varying float vSoft;
+varying float vLamp;
 
 void main(){
   vec2 c = gl_PointCoord - 0.5;
@@ -371,7 +406,9 @@ void main(){
   float a = mix(hard, soft, vSoft);
   a *= vAlpha;
   if (a < 0.004) discard;
-  gl_FragColor = vec4(uColor * uExposure, a);
+  /* 落在头灯光锥里的雪花被染暖、并且更亮 */
+  vec3 col = mix(uColor, uLampColor, vLamp * 0.85) * (1.0 + vLamp * 1.35);
+  gl_FragColor = vec4(col * uExposure, a);
 }
 `;
 

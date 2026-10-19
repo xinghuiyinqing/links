@@ -34,8 +34,23 @@ export function createSnow(opts) {
   /* 前 64 颗专门做「近景大雪花」：穿过镜头、带虚边，这是暴雪感的来源。
      其余按层均匀分配，层内按透视密度分布：越近越密。 */
   const NEAR = Math.min(110, Math.max(16, max >> 6));
+  const BOKEH = Math.min(12, Math.max(0, max >> 9));
   for (let i = 0; i < max; i++) {
-    if (i < NEAR) {
+    if (i < BOKEH) {
+      /* 近景失焦散景：镜头前 3~8 米、极大极虚的白斑，缓慢横飘。
+         靠着色器里的 layer>2.5 分支走单独路径，不增加 draw call。 */
+      pos[i * 3] = (rnd() * 2 - 1) * BOX.halfX;
+      pos[i * 3 + 1] = BOX.yMin + rnd() * BOX.spanY;
+      pos[i * 3 + 2] = -(3.0 + rnd() * 5.0);
+      par[i * 4] = 0.10 + rnd() * 0.16;
+      par[i * 4 + 1] = 1.6 + rnd() * 1.6;
+      par[i * 4 + 2] = rnd() * Math.PI * 2;
+      par[i * 4 + 3] = 3;
+      siz[i] = 0.30 + rnd() * 0.42;
+      sed[i] = rnd();
+      continue;
+    }
+    if (i < BOKEH + NEAR) {
       /* 近景大雪花：depth 2.2~13 米（视空间 z 取负！），屏幕 8~22px */
       pos[i * 3] = (rnd() * 2 - 1) * BOX.halfX;
       pos[i * 3 + 1] = BOX.yMin + rnd() * BOX.spanY;
@@ -94,6 +109,9 @@ export function createSnow(opts) {
       uBoxZ0: { value: BOX.z0 },
       uBoxZ1: { value: BOX.z1 },
       uColor: { value: new THREE.Color(0xfbfdff) },
+      uLampColor: { value: new THREE.Color(0xffb257) },
+      uLampView: { value: new THREE.Vector3(9999, 9999, 0) },
+      uLampCone: { value: 0 },
       uExposure: { value: 1 },
     },
     vertexShader: SNOW_VERT,
@@ -145,6 +163,11 @@ export function createSnow(opts) {
     setReducedMotion(on) {
       uniforms.uFall.value = on ? 0.22 : 1;
       uniforms.uWind.value = on ? 0.22 : 1.15;
+    },
+    /** 车头灯在视空间的位置（每帧由 world.update 算好传进来） */
+    setLampView(x, y, z, power) {
+      uniforms.uLampView.value.set(x, y, z);
+      uniforms.uLampCone.value = power;
     },
     /** 每帧：只写这几个 uniform，没有任何分配 */
     update(tSec, gustPhase) {

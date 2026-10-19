@@ -355,7 +355,13 @@ export function createWorld(renderer, scene, tierName, tier) {
     /* 亮度随「点灯进度」一起上来：停稳前灯是暗的 */
     glowMat.uniforms.uPower.value = 0.55 + 0.45 * S.ignite;
 
-    void camera; void viewHeightDevice; void fovRad;
+    /* 车头灯在视空间的位置：给雪花算「是否落在灯锥里」用 */
+    if (S.lampView) {
+      S.lampView.x = lampX; S.lampView.y = S.lampY || 2.94; S.lampView.z = 0.4;
+      S.lampView.applyMatrix4(camera.matrixWorldInverse);
+      if (S.snowCone) S.snowCone(S.lampView.x, S.lampView.y, S.lampView.z, 0.55 + 0.35 * S.exposure);
+    }
+    void viewHeightDevice; void fovRad;
   }
 
   function setPixelRatio(heightDevicePx, fovRad) {

@@ -81,7 +81,7 @@ window.__wtUI = true;   /* index.html 里的兜底定时器靠这个标志判断
     if (headVer) headVer.textContent = v;
     if (card) {
       card.setAttribute('aria-label',
-        '下载王牌竞速内核 ' + v + '，文件名 王牌竞速内核.sh，体积 ' + sizeText);
+        '星绘引擎：下载王牌竞速内核 ' + v + '，文件名 王牌竞速内核.sh，体积 ' + sizeText);
     }
   }
 

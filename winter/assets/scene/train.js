@@ -191,14 +191,13 @@ function buildLocoSteel(b) {
       .rotateZ(-Math.PI * 0.5),
     mat4((L.SMOKEBOX_X0 + L.SMOKEBOX_X1) * 0.5, L.BOILER_Y, 0), steel,
   );
-  /* 烟箱前盖（略微外凸的圆盘）+ 一圈螺栓边 */
-  b.add(new THREE.CylinderGeometry(L.SMOKEBOX_R * 0.985, L.SMOKEBOX_R * 0.985, 0.06, 22)
-    .rotateZ(-Math.PI * 0.5), mat4(L.SMOKEBOX_X1 + 0.03, L.BOILER_Y, 0), steel);
-  b.add(new THREE.TorusGeometry(L.SMOKEBOX_R * 0.99, 0.030, 5, 22)
-    .rotateY(Math.PI * 0.5), mat4(L.SMOKEBOX_X1 + 0.05, L.BOILER_Y, 0), steel);
-  /* 前盖中心的铰链把手 */
-  b.add(new THREE.BoxGeometry(0.05, 0.34, 0.075), mat4(L.SMOKEBOX_X1 + 0.07, L.BOILER_Y + 0.34, 0), steel);
-  b.add(new THREE.TorusGeometry(0.10, 0.020, 4, 10), mat4(L.SMOKEBOX_X1 + 0.07, L.BOILER_Y - 0.32, 0), steel);
+  /* 烟箱两道箍环（r 比锅炉大 2%，侧视时能看出烟箱是一个更粗的独立圆筒） */
+  for (let i = 0; i < 2; i++) {
+    b.add(new THREE.TorusGeometry(L.SMOKEBOX_R + 0.014, 0.026, 5, 24)
+      .rotateY(Math.PI * 0.5), mat4(L.SMOKEBOX_X0 + 0.16 + i * 0.60, L.BOILER_Y, 0), steel);
+  }
+  /* 烟箱顶部的一道纵向加强板（不是整块的方板，只有 12cm 宽） */
+  b.add(new THREE.BoxGeometry(1.02, 0.05, 0.12), mat4(4.14, L.BOILER_Y + L.SMOKEBOX_R - 0.02, 0), steel);
 
   /* ---- 烟囱：下粗上略外扩 ---- */
   const chTop = L.CHIMNEY_TOP;
@@ -241,18 +240,41 @@ function buildLocoSteel(b) {
   /* 火箱外壳的铆接边 */
   b.add(new THREE.BoxGeometry(1.20, 0.08, 1.50), mat4(-1.30, 3.28, 0), steel);
 
-  /* ---- 挡烟板（elephant ear）：俄式/德式机车最有辨识度的剪影 ---- */
-  for (let s = -1; s <= 1; s += 2) {
-    const z = s * 1.03;
-    /* 上大板 */
-    b.add(new THREE.BoxGeometry(1.62, 1.44, 0.055), mat4(4.02, 2.72, z), steel);
-    /* 下小板（形成前低后高的错台） */
-    b.add(new THREE.BoxGeometry(1.28, 0.30, 0.055), mat4(3.86, 1.86, z), steel);
-    /* 前缘的一条卷边 */
-    b.add(new THREE.BoxGeometry(0.075, 1.42, 0.075), mat4(4.81, 2.70, z), steel);
-    /* 把挡烟板撑在烟箱上的两根支架 */
-    b.add(new THREE.BoxGeometry(0.06, 0.06, 0.42), mat4(4.55, 3.30, s * 0.86), steel);
-    b.add(new THREE.BoxGeometry(0.06, 0.06, 0.42), mat4(3.55, 2.10, s * 0.86), steel);
+  /* ---- 挡烟板：原来是 1.62x1.44 的方板，正好把整个圆烟箱挡住 ——
+     侧视时读成"锅炉前面接了一个方盒"，这就是用户说的两个长方体之一。
+     俄系支线小机车多数本来就没有挡烟板，直接去掉，露出圆烟箱。
+     （想加回来的话：应该是 0.03 厚的弧形薄板，与烟箱留 0.1 的缝。） */
+  /* ---- 烟箱前端：圆形门 + 铰链耳 + 中心横把手 + 门周一圈螺栓 ---- */
+  {
+    const doorX = L.SMOKEBOX_X1 + 0.045;
+    const R = L.SMOKEBOX_R;
+    /* 门盘：略微外凸（用两段圆台做出锅底感，而不是一块平板） */
+    b.add(new THREE.CylinderGeometry(R * 0.965, R * 0.995, 0.075, 24)
+      .rotateZ(-Math.PI * 0.5), mat4(doorX, L.BOILER_Y, 0), steel);
+    b.add(new THREE.CylinderGeometry(R * 0.80, R * 0.965, 0.055, 24)
+      .rotateZ(-Math.PI * 0.5), mat4(doorX + 0.062, L.BOILER_Y, 0), steel);
+    /* 门外的压圈 */
+    b.add(new THREE.TorusGeometry(R * 1.005, 0.030, 6, 26)
+      .rotateY(Math.PI * 0.5), mat4(doorX - 0.02, L.BOILER_Y, 0), steel);
+    /* 一圈螺栓：14 颗小圆台，全部塞进同一块合并几何 */
+    for (let k = 0; k < 14; k++) {
+      const a = (k / 14) * Math.PI * 2;
+      const by = L.BOILER_Y + Math.cos(a) * R * 0.90;
+      const bz = Math.sin(a) * R * 0.90;
+      b.add(new THREE.CylinderGeometry(0.028, 0.034, 0.035, 6)
+        .rotateZ(-Math.PI * 0.5), mat4(doorX + 0.098, by, bz), steel);
+    }
+    /* 中心横把手（两根短杆 + 一根横杆） */
+    b.add(new THREE.CylinderGeometry(0.024, 0.024, 0.10, 6)
+      .rotateZ(-Math.PI * 0.5), mat4(doorX + 0.13, L.BOILER_Y, 0), steel);
+    b.add(new THREE.BoxGeometry(0.035, 0.075, 0.44), mat4(doorX + 0.175, L.BOILER_Y, 0), steel);
+    for (let s = -1; s <= 1; s += 2) {
+      b.add(new THREE.BoxGeometry(0.03, 0.10, 0.05), mat4(doorX + 0.175, L.BOILER_Y, s * 0.20), steel);
+      /* 铰链耳：门盘两侧各一个 */
+      b.add(new THREE.BoxGeometry(0.055, 0.16, 0.07), mat4(doorX - 0.02, L.BOILER_Y + R * 0.72, s * 0.20), steel);
+    }
+    /* 门上方的一个小吊环（起吊用） */
+    b.add(new THREE.TorusGeometry(0.05, 0.014, 5, 10), mat4(doorX + 0.05, L.BOILER_Y + R * 0.94, 0), steel);
   }
 
   /* ---- 走台（running board）与围裙 ---- */
@@ -271,15 +293,26 @@ function buildLocoSteel(b) {
   for (let s = -1; s <= 1; s += 2) {
     const z = s * 0.96;
     /* 汽缸本体：前端带一个凸盖 */
-    b.add(new THREE.CylinderGeometry(0.28, 0.28, 0.82, 16, 1, false)
+    b.add(new THREE.CylinderGeometry(0.345, 0.345, 0.78, 20, 1, false)
       .rotateZ(-Math.PI * 0.5), mat4(3.16, L.CROSS_Y, z), steel);
-    b.add(new THREE.CylinderGeometry(0.295, 0.295, 0.10, 16)
+    b.add(new THREE.CylinderGeometry(0.362, 0.372, 0.085, 20)
       .rotateZ(-Math.PI * 0.5), mat4(3.53, L.CROSS_Y, z), steel);
     /* 汽缸盖的螺栓圈 */
-    b.add(new THREE.TorusGeometry(0.27, 0.030, 5, 16).rotateY(Math.PI * 0.5),
+    b.add(new THREE.TorusGeometry(0.352, 0.026, 5, 20).rotateY(Math.PI * 0.5),
       mat4(3.59, L.CROSS_Y, z), steel);
     /* 汽缸与车架之间的连接块 */
-    b.add(new THREE.BoxGeometry(0.72, 0.44, 0.30), mat4(3.10, L.CROSS_Y, z - s * 0.20), steel);
+    /* 鞍座：贴合缸体下缘的一段弧壳（原来这里是一块 0.72x0.44x0.30 的方盒，
+       侧视合成「带雪顶的矩形盒」的主因之一） */
+    b.add(new THREE.CylinderGeometry(0.352, 0.352, 0.36, 18, 1, true, Math.PI * 0.54, Math.PI * 0.92)
+      .rotateZ(-Math.PI * 0.5), mat4(3.06, L.CROSS_Y, z), steel);
+    b.add(new THREE.BoxGeometry(0.28, 0.17, 0.10), mat4(3.02, L.CROSS_Y - 0.42, z), steel);
+    /* 排水阀：两个朝下的直角弯头 */
+    for (let k = 0; k < 2; k++) {
+      const px = 2.92 + k * 0.30;
+      b.add(new THREE.CylinderGeometry(0.032, 0.032, 0.17, 6), mat4(px, L.CROSS_Y - 0.40, z), steel);
+      b.add(new THREE.CylinderGeometry(0.030, 0.030, 0.10, 6).rotateZ(Math.PI * 0.5),
+        mat4(px + 0.05, L.CROSS_Y - 0.48, z), steel);
+    }
     /* 滑板（两根导杆） */
     for (let k = -1; k <= 1; k += 2) {
       b.add(new THREE.BoxGeometry(0.98, 0.045, 0.075), mat4(2.36, L.CROSS_Y + k * 0.105, z), steel);
@@ -292,6 +325,19 @@ function buildLocoSteel(b) {
     b.add(new THREE.CylinderGeometry(0.035, 0.035, 0.10, 6), mat4(3.30, L.CROSS_Y - 0.28, z), steel);
   }
 
+  /* ---- 闸瓦 / 闸瓦托：贴在每只动轮踏面的后上方 ---- */
+  for (let d = 0; d < L.DRIVER_AXLES.length; d++) {
+    const ax = L.DRIVER_AXLES[d];
+    const ay = TRACK.railTop + L.DRIVER_R;
+    for (let s = -1; s <= 1; s += 2) {
+      /* 闸瓦本体：一段包住轮缘的弧形块（用圆柱的一段近似） */
+      b.add(new THREE.CylinderGeometry(L.DRIVER_R + 0.055, L.DRIVER_R + 0.055, 0.20, 14, 1, true, -0.52, 1.04)
+        .rotateX(Math.PI * 0.5), mat4(ax, ay, s * L.WHEEL_Z), steel);
+      /* 闸瓦托 + 吊杆 */
+      b.add(new THREE.BoxGeometry(0.14, 0.20, 0.10), mat4(ax - 0.30, ay + 0.60, s * (L.WHEEL_Z + 0.10)), steel);
+      b.add(new THREE.BoxGeometry(0.07, 0.66, 0.06), mat4(ax - 0.34, ay + 0.92, s * (L.WHEEL_Z + 0.10)), steel);
+    }
+  }
   /* ---- 车架侧梁 ---- */
   for (let s = -1; s <= 1; s += 2) {
     b.add(new THREE.BoxGeometry(8.2, 0.32, 0.11), mat4(0.60, 1.58, s * 0.80), steel);
@@ -384,9 +430,16 @@ function buildLocoSteel(b) {
   /* 灯箱与烟箱之间的支架 */
   b.add(new THREE.BoxGeometry(0.10, 0.10, 0.42), mat4(lampX - 0.24, lampY, 0), steel);
   b.add(new THREE.BoxGeometry(0.10, 0.16, 0.10), mat4(lampX - 0.30, lampY - 0.14, 0), steel);
-  /* 烟箱顶上的一根汽笛 */
-  b.add(new THREE.CylinderGeometry(0.055, 0.075, 0.34, 10), mat4(3.30, 3.30, 0), steel);
-  b.add(new THREE.CylinderGeometry(0.085, 0.055, 0.10, 10), mat4(3.30, 3.50, 0), steel);
+  /* 汽笛：底座环 + 细长笛管 + 顶口外扩 */
+  b.add(new THREE.CylinderGeometry(0.095, 0.11, 0.055, 12), mat4(3.30, 3.235, 0), steel);
+  b.add(new THREE.CylinderGeometry(0.055, 0.075, 0.36, 10), mat4(3.30, 3.44, 0), steel);
+  b.add(new THREE.CylinderGeometry(0.092, 0.055, 0.09, 10), mat4(3.30, 3.665, 0), steel);
+  /* 汽包上方的双弹簧安全阀（两根小杆 + 顶帽） */
+  for (let s = -1; s <= 1; s += 2) {
+    b.add(new THREE.CylinderGeometry(0.030, 0.030, 0.24, 6), mat4(L.DOME_X + s * 0.075, L.BOILER_Y + 1.16, 0), steel);
+    b.add(new THREE.CylinderGeometry(0.048, 0.030, 0.055, 8), mat4(L.DOME_X + s * 0.075, L.BOILER_Y + 1.30, 0), steel);
+  }
+  b.add(new THREE.BoxGeometry(0.20, 0.045, 0.045), mat4(L.DOME_X, L.BOILER_Y + 1.10, 0), steel);
 }
 
 /* ============================================================ 机车 · 黄铜 */
@@ -395,11 +448,13 @@ function buildLocoBrass(b) {
   const brass = SHADE.brass();
   /* 锅炉两侧的手扶杆（含 6 个立柱座） */
   for (let s = -1; s <= 1; s += 2) {
-    b.add(new THREE.CylinderGeometry(0.026, 0.026, 5.0, 6)
-      .rotateZ(Math.PI * 0.5), mat4(1.30, L.BOILER_Y + 0.36, s * 0.635), brass);
+    /* 手扶栏杆：0.026 太细（2 倍放大下只有 2px），加到 0.034 并抬高到
+       锅炉最大直径处，去掉挡烟板之后它才真的露出来。 */
+    b.add(new THREE.CylinderGeometry(0.034, 0.034, 5.2, 8)
+      .rotateZ(Math.PI * 0.5), mat4(1.20, L.BOILER_Y + 0.44, s * 0.655), brass);
     for (let i = 0; i < 5; i++) {
-      b.add(new THREE.CylinderGeometry(0.020, 0.020, 0.12, 5)
-        .rotateX(Math.PI * 0.5), mat4(-0.55 + i * 1.0, L.BOILER_Y + 0.36, s * 0.685), brass);
+      b.add(new THREE.CylinderGeometry(0.024, 0.024, 0.16, 6)
+        .rotateX(Math.PI * 0.5), mat4(-0.72 + i * 1.16, L.BOILER_Y + 0.44, s * 0.70), brass);
     }
   }
   /* 汽包与沙箱上的铜箍 */
@@ -458,10 +513,6 @@ function buildLocoSnow(b) {
   }
   /* 驾驶室顶的雪 */
   b.add(new THREE.BoxGeometry(2.34, 0.05, 2.30), mat4(-2.89, 3.86, 0), snow);
-  /* 挡烟板顶沿的雪 */
-  for (let s = -1; s <= 1; s += 2) {
-    b.add(new THREE.BoxGeometry(1.60, 0.05, 0.07), mat4(4.02, 3.46, s * 1.03), snow);
-  }
   /* 缓冲梁上的雪 */
   b.add(new THREE.BoxGeometry(0.18, 0.05, 2.10), mat4(4.62, 1.33, 0), snow);
   /* 汽缸顶的一点雪 */
@@ -824,9 +875,9 @@ export function createTrain(scene, renderer, tierName) {
   steelSet.map.repeat.set(1, 1);
 
   const matSteel = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(0x18242f),
-    metalness: 0.75,
-    roughness: 0.42,
+    color: new THREE.Color(0x2f4052),
+    metalness: 0.22,
+    roughness: 0.55,
     map: steelSet.map,
     normalMap: steelSet.normalMap,
     normalScale: new THREE.Vector2(0.85, 0.85),
@@ -834,9 +885,9 @@ export function createTrain(scene, renderer, tierName) {
     envMapIntensity: 0.9,
   });
   const matBrass = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(0xb08a42),
-    metalness: 1.0,
-    roughness: 0.28,
+    color: new THREE.Color(0xba9046),
+    metalness: 0.42,
+    roughness: 0.34,
     map: steelSet.map,
     normalMap: steelSet.normalMap,
     normalScale: new THREE.Vector2(0.5, 0.5),
@@ -851,7 +902,7 @@ export function createTrain(scene, renderer, tierName) {
     envMapIntensity: 0.55,
   });
   const matCoal = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(0x14181e),
+    color: new THREE.Color(0x1b2027),
     metalness: 0.30,
     roughness: 0.94,
     map: coalMap,
@@ -865,9 +916,9 @@ export function createTrain(scene, renderer, tierName) {
     envMapIntensity: 0.30,
   });
   const matWheel = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(0x1b2731),
-    metalness: 0.82,
-    roughness: 0.38,
+    color: new THREE.Color(0x2a3a46),
+    metalness: 0.24,
+    roughness: 0.52,
     vertexColors: true,
     envMapIntensity: 1.1,
   });

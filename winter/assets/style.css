@@ -175,12 +175,12 @@ img, svg, canvas { display: block; max-width: 100%; }
 
 .head-word {
   margin: 0;
-  font-family: var(--f-display);
-  font-weight: 800;
+  font-family: var(--f-body);       /* 中文铭牌：Noto Sans SC 500 */
+  font-weight: 500;
   font-size: clamp(.96rem, .6rem + 1.1vmin, 1.62rem);
-  line-height: 1.1;
-  letter-spacing: .22em;
-  text-indent: .22em;
+  line-height: 1.15;
+  letter-spacing: .18em;            /* 中文加字距才有"铭牌"感 */
+  text-indent: .18em;
   color: var(--ice-deep);
   text-shadow: 0 1px 0 rgb(255 255 255 / .55);
 }
@@ -377,6 +377,8 @@ html.has-js body:not(.is-settled) #windows {
   transition:
     -webkit-mask-size .85s var(--ease),
     mask-size .85s var(--ease),
+    -webkit-mask-position .85s var(--ease),
+    mask-position .85s var(--ease),
     opacity .85s var(--ease);
 }
 
@@ -397,6 +399,29 @@ html.has-js body:not(.is-settled) #windows {
   background-position: 150% 0;
   background-repeat: no-repeat;
 }
+
+/* 蚀刻在玻璃上的品牌：绝对定位在右上角，完全脱离四行文字的排版
+   （硬约束：200×138 与 175×121 两档下 12 个文本节点仍须零 ellipsis）。
+   top/right 的取值避开了拱形上沿的圆角切线。 */
+.wc-brand {
+  position: absolute;
+  top: 12px;
+  right: 24px;
+  z-index: 3;
+  pointer-events: none;
+  font-family: var(--f-body);
+  font-weight: 500;
+  font-size: clamp(9px, 3.4cqw, 11px);
+  line-height: 1;
+  letter-spacing: .18em;
+  text-indent: .18em;
+  color: var(--lamp-hot);          /* 偏黄铜的蚀刻反光 */
+  opacity: calc(.09 + .05 * var(--lit));
+  text-shadow: 0 1px 0 rgb(6 14 20 / .4);
+  transition: opacity .4s var(--ease);
+}
+.window-card:hover .wc-brand,
+.window-card:focus-visible .wc-brand { opacity: .22; }
 
 /* 竖棂：一道黄铜竖条，把卡片分成"72px 序号+图标区"和"文本区"。
    横窗的结构就该是竖分的，比横档更像车窗。 */
@@ -573,7 +598,8 @@ html.has-js body:not(.is-settled) #windows {
   .window-card:hover .wc-lit { background-size: 118% 112%, 100% 100%, 100% 100%; }
   .window-card:hover .wc-frost {
     opacity: .1;
-    -webkit-mask-size: 190% 190%; mask-size: 190% 190%;
+    -webkit-mask-size: 150% 160%; mask-size: 150% 160%;
+    -webkit-mask-position: 100% 0%; mask-position: 100% 0%;   /* 霜从右上角先化开 */
   }
   .window-card:hover .wc-glare { animation: wcSweep .95s var(--ease) 1 both; }
   .window-card:hover .wc-arrow { color: #f2f8fc; transform: translateX(0); }
@@ -588,7 +614,8 @@ html.has-js body:not(.is-settled) #windows {
 .window-card:focus-visible .wc-lit { background-size: 118% 112%, 100% 100%, 100% 100%; }
 .window-card:focus-visible .wc-frost {
   opacity: .1;
-  -webkit-mask-size: 190% 190%; mask-size: 190% 190%;
+  -webkit-mask-size: 150% 160%; mask-size: 150% 160%;
+  -webkit-mask-position: 100% 0%; mask-position: 100% 0%;
 }
 .window-card:focus-visible .wc-glare { animation: wcSweep .95s var(--ease) 1 both; }
 .window-card:focus-visible .wc-arrow { color: #f2f8fc; transform: translateX(0); }
@@ -703,6 +730,12 @@ body.is-anchored:not(.is-settled) .window-card { --lit: 0; }
     rgb(47 125 176 / 0) 100%);
 }
 
+.board-brand {
+  color: var(--ink);
+  font-weight: 700;
+  letter-spacing: .16em;
+}
+
 .board-live {
   margin: 0;
   display: inline-flex;
@@ -710,17 +743,43 @@ body.is-anchored:not(.is-settled) .window-card { --lit: 0; }
   gap: .5em;
   color: var(--ink);
   font-weight: 700;
+  animation: boardFlicker 12.5s steps(1, end) infinite;
 }
 .board-led {
+  position: relative;
   width: 6px; height: 6px;
   border-radius: 50%;
   background: var(--ice-deep);
   box-shadow: 0 0 0 3px rgb(47 125 176 / .16), 0 0 8px rgb(47 125 176 / .55);
-  animation: ledBreath 3.4s var(--ease) infinite;
+  animation: ledBreath 3.4s var(--ease) infinite;   /* 极缓呼吸 */
+}
+/* 每 12.5s 一次"数据跳动"：LED 连闪两下 + 文字同步暗一下 */
+.board-led::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  background: var(--ice-deep);
+  opacity: 0;
+  animation: ledBurst 12.5s var(--ease) infinite;
 }
 @keyframes ledBreath {
   0%, 100% { opacity: 1; }
   50%      { opacity: .42; }
+}
+@keyframes ledBurst {
+  0%, 86%, 100% { opacity: 0; transform: scale(1); }
+  87.5%         { opacity: .8; transform: scale(1.75); }
+  89%           { opacity: 0; transform: scale(1); }
+  91%           { opacity: .5; transform: scale(1.4); }
+  92.5%         { opacity: 0; transform: scale(1); }
+}
+@keyframes boardFlicker {
+  0%, 86%, 100% { opacity: 1; }
+  87.5%         { opacity: .5; }
+  89%           { opacity: 1; }
+  91%           { opacity: .72; }
+  92.5%         { opacity: 1; }
 }
 
 .board-rule {

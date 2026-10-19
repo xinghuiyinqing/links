@@ -112,6 +112,8 @@ const S = {
   ignite: 0,
   gust: 0,
   chimneyX: 0,
+  lampView: null,
+  snowCone: null,
   chimneyY: 0,
   domeX: 0,
   lampX: 0,
@@ -139,6 +141,7 @@ let snow = null;
 let steam = null;
 let hemi = null;
 let sun = null;
+let rim = null;
 let canvas = null;
 let booted = false;
 let disposed = false;
@@ -321,6 +324,15 @@ function boot() {
     scene.add(sun);
     scene.add(sun.target);
 
+    /* 第 4 盏（也是最后一盏）：从车体后方掠过的无阴影轮廓光。
+       只做一件事 —— 在车体背光侧拉出一道冷色亮边，把「纯黑剪影」救回来。
+       无阴影、无距离衰减，成本可忽略。 */
+    rim = new THREE.DirectionalLight(0xd6e6f6, 0.62);
+    rim.position.set(34, 16, -46);
+    rim.target.position.set(0, 3, 0);
+    scene.add(rim);
+    scene.add(rim.target);
+
     /* ---- 世界 ---- */
     world = createWorld(renderer, scene, tierName, tier);
 
@@ -330,6 +342,8 @@ function boot() {
     /* ---- 雪 ---- */
     snow = createSnow({ max: TIERS.high.snowMax });
     snow.setCount(tier.snowMax);
+    S.lampView = new THREE.Vector3();
+    S.snowCone = snow.setLampView;
     scene.add(snow.object);
 
     /* ---- 蒸汽 ---- */
@@ -614,6 +628,7 @@ function frame(now) {
   /* ---- 环境光与头灯跟着曝光呼吸 ---- */
   hemi.intensity = 3.10 * S.exposure;
   sun.intensity = 1.55 * S.exposure;
+  rim.intensity = 0.62 * S.exposure;
   if (train) train.setExposure(S.exposure);
   if (snow) snow.setExposure(S.exposure);
   if (steam) steam.setExposure(S.exposure);
