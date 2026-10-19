@@ -74,7 +74,7 @@
       var mb = (parseInt(m[2], 10) / 1048576).toFixed(1);
       if (verText) verText.textContent = 'v' + v;
       if (dlValue) dlValue.textContent = 'v' + v;
-      if (dlNote) dlNote.textContent = mb + ' MB · 直装';
+      if (dlNote) dlNote.textContent = mb + ' MB';
     })
     .catch(function () { /* 拉不到就保留 HTML 里写死的 */ });
 
@@ -154,6 +154,24 @@
       });
     });
   });
+
+  /* ==================== 5b. 一键加群（唤起 QQ） ==================== */
+  /* qm.qq.com/q/<群号> 实测是 404；官方 web 加群链接需要一个在
+     qun.qq.com/join.html 登录后生成的 k，我们不掌握。
+     所以走 QQ 自己的 mqqapi scheme —— 实测能直接把 QQ 拉到群卡片页。
+     这里只做"没跳成"的兜底：点了之后页面还可见就提示检查 QQ。      */
+  var qqJoin = $('#qqJoin');
+  if (qqJoin) {
+    qqJoin.addEventListener('click', function () {
+      var start = Date.now();
+      window.setTimeout(function () {
+        // 真跳到 QQ 的话，页面已经进后台了（document.hidden = true）
+        if (document.hidden || document.visibilityState === 'hidden') return;
+        if (Date.now() - start < 1500) return;      // 用户还在犹豫
+        showToast('没能唤起 QQ，请确认已安装 QQ 客户端', 'warn');
+      }, 1800);
+    });
+  }
 
   /* ==================== 6. 指针落在板上 -> 赛道加速 ==================== */
   var plates = $('#plates');
