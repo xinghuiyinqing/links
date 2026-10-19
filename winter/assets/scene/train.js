@@ -972,15 +972,15 @@ export function createTrain(scene, renderer, tierName) {
   /* 体积光锥：一个沿 +X 张开的锥体，加色混合。
      vT 在着色器里按 position.x 归一化，所以这里把 x 压到 0..1，
      再用 mesh.scale.x 把长度还原成 9.5 —— 这样片元里能拿到干净的 0..1 参数。 */
-  const CONE_LEN = 9.5;
-  const coneGeo = new THREE.ConeGeometry(2.45, CONE_LEN, 14, 1, true);
+  const CONE_LEN = 6.4;
+  const coneGeo = new THREE.ConeGeometry(1.70, CONE_LEN, 12, 1, true);
   coneGeo.translate(0, -CONE_LEN * 0.5, 0);
   coneGeo.rotateZ(Math.PI * 0.5);
   coneGeo.scale(1 / CONE_LEN, 1, 1);
   const coneMat = new THREE.ShaderMaterial({
     uniforms: {
       uColor: { value: new THREE.Color(0xffc176) },
-      uPower: { value: 0.30 },
+      uPower: { value: 0.22 },
       uExposure: { value: 1 },
     },
     vertexShader: CONE_VERT,
@@ -1105,7 +1105,7 @@ export function createTrain(scene, renderer, tierName) {
     const flick = 1 + 0.035 * Math.sin(tSec * 11.3) * Math.sin(tSec * 3.1);
     headLight.intensity = headLightBase * S.exposure * flick;
     lensMat.color.copy(lensBase).multiplyScalar(0.85 + 0.25 * S.exposure);
-    coneMat.uniforms.uPower.value = (coneEnabled ? 0.30 : 0) * S.exposure;
+    coneMat.uniforms.uPower.value = (coneEnabled ? 0.22 : 0) * S.exposure;
 
     /* ---- 供蒸汽/雪地用的世界坐标 ---- */
     /* chimney / lamp 都是 locoGroup 的子物，locoGroup 相对 nod 只差一个平移，

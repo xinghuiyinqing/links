@@ -31,7 +31,9 @@ export const TIERS = {
   },
   mid: {
     name: 'mid',
-    dprCap: 1.5,
+    /* 2x 而不是 1.5x：3x 屏手机上 1.5 等于只渲染 1/4 像素，肉眼就是糊。
+       真·低端机靠 1s 滑窗连续 2 窗口 <45fps 自动降一档兜底。 */
+    dprCap: 2,
     snowMax: 5000,
     steamMax: 300,
     sparkle: 0.7,
@@ -90,8 +92,10 @@ export function detectQuality() {
   const uaMobile = /android|iphone|ipad|ipod|mobile|silk|kindle/.test(ua);
   const isMac = /macintosh|mac os x/.test(ua);
 
-  /* Safari 的 hardwareConcurrency 常常虚高，另算一个「弱机」信号 */
-  const smallViewport = Math.min(window.innerWidth || 1200, window.innerHeight || 800) < 520;
+  /* Safari 的 hardwareConcurrency 常常虚高，另算一个「弱机」信号。
+     阈值必须 <360：390/412/430 宽的手机是主流尺寸，原来 <520 会把
+     每一台手机都判成小屏，然后一路扣分打到 low/mid，3x 屏只能拿 cap 1.5（糊）。 */
+  const smallViewport = Math.min(window.innerWidth || 1200, window.innerHeight || 800) < 360;
 
   const mobile = coarse || uaMobile;
 
@@ -102,7 +106,9 @@ export function detectQuality() {
   /* 高分屏移动端（dpr>=2.5 基本是现代中高端机）不该被打到 low */
   if (mobile && dpr >= 2.5) score += 1;
   if (smallViewport) score -= 1;
-  if (dpr >= 3) score -= 1;
+  /* 注意：不要因为 dpr>=3 就扣分。高分屏是"更清楚"，不是"更弱"；
+     3x 屏落到 mid → cap 1.5 → canvas 只有 585×1266，实际是糊的。
+     真正的弱机会在运行期被滑窗 FPS 降档兜住。 */
   if (mem && mem > 0 && mem <= 2) score -= 1;
   /* iPad / 高端移动端：粗指针但分辨率高、核心多，别一刀切到 low */
   if (mobile && hc >= 8 && dpr <= 2 && !smallViewport) score += 2;

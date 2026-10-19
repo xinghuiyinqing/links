@@ -140,7 +140,7 @@ export function createSteam(opts) {
             cy + rnd() * 0.10,
             tSec,
             0.30 + speed * 0.012 + rnd() * 0.14,
-            0.80 + rnd() * 0.45,
+            0.64 + rnd() * 0.30,
           );
         }
       }

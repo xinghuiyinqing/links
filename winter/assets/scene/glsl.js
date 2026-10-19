@@ -86,10 +86,13 @@ void main(){
   /* ---------------- 两三条极淡的横向雪雾云带 ----------------------------
      上部 30% 原本是一片空渐变。用两条高斯带（中心高度 + 横向轻微起伏）
      混进一点点灰白，alpha 只有 0.07/0.05，够让天空有"层"但不抢戏。 */
-  float band1 = exp(-pow((h - 0.30) * 8.4, 2.0));
-  float band2 = exp(-pow((h - 0.50) * 13.0, 2.0));
+  /* 用 smoothstep 鼓包代替 exp(-pow())：天空占了半屏，省 3 个超越函数 */
+  float band1 = 1.0 - smoothstep(0.0, 0.075, abs(h - 0.30));
+  float band2 = 1.0 - smoothstep(0.0, 0.048, abs(h - 0.50));
+  band1 *= band1;
+  band2 *= band2;
   float wig = 0.62 + 0.38 * sin(d.x * 1.7 + h * 5.0) * sin(d.x * 0.6 - 1.1);
-  c = mix(c, uCloud, band1 * wig * 0.085 + band2 * wig * 0.055);
+  c = mix(c, uCloud, band1 * wig * 0.10 + band2 * wig * 0.065);
 
   gl_FragColor = vec4(c * uExposure, 1.0);
 }
@@ -177,8 +180,7 @@ void main(){
   float ripple = wt_vnoise(vec2(p.x * 0.030, p.y * 0.44));
   col *= 0.985 + (ripple - 0.78) * 0.85;
 
-  /* 雪壳高频噪声压一点点，避免大片死色 */
-  col *= 0.965 + fine * 0.055;
+  /* 高频细部用 ripple 的二次项近似，不再单独采样 fbm */
 
   /* ★ 关键：实测 y655-895 的色值只在 #C8D5E0~#D1DEE8 之间（p2..p98 只差 13 级），
      因为 value-noise 的取值高度集中在 0.5 附近，光靠 mix 拉不开。
@@ -196,12 +198,12 @@ void main(){
 
   /* ---------------- 闪烁高光：视线相关的低密度时间噪声 ------------------
      只在很小的格子里出现，并且随距离淡出，否则远处会闪成噪点。 */
-  float sparkleFade = 1.0 - smoothstep(14.0, 62.0, dist);
+  float sparkleFade = 1.0 - smoothstep(10.0, 40.0, dist);
   if (sparkleFade > 0.001 && uSparkle > 0.001){
     vec2 g = p * 9.0;
     vec2 cell = floor(g);
     float h = wt_hash12(cell);
-    if (h > 0.9725){
+    if (h > 0.9805){
       vec2 f = fract(g) - 0.5;
       float twinkle = 0.5 + 0.5 * sin(uTime * 2.6 + h * 91.0);
       float d2 = dot(f, f);
@@ -413,7 +415,7 @@ void main(){
   vec3 c = aOrigin + vec3(trail + drift, rise, 0.0);
 
   /* ---- 尺寸：快速膨胀 → 缓慢扩散 ---- */
-  float grow = 0.34 + 3.10 * pow(u, 0.55);
+  float grow = 0.30 + 2.30 * pow(u, 0.55);
   float size = aScale * grow;
 
   /* ---- billboard：先换到视空间再沿屏幕轴展开，与相机朝向无关 ---- */

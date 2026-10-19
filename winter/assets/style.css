@@ -284,6 +284,15 @@ img, svg, canvas { display: block; max-width: 100%; }
   transition: opacity .45s var(--ease);
 }
 
+/* ★ 锚点到达之前，四张卡还停在 #windows 的左上角，而 --lit 可能已经是 1，
+   .wc-glow 那圈外辉光就会直接糊在「冬季快车」标题上
+   （QA 实测包围盒 (24,0)–(264,192)、质心 (140,96)，settled 后消失）。
+   入场前整层既不可见也不可点。 */
+html.has-js body:not(.is-settled) #windows {
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* --- 窗本体：黄铜细双边 + 拱形上沿 + 深烟色玻璃 ---
    底和车体同族（#18242f 一带），这样卡片是"长在车上的一扇窗"，
    不是浮在页面上的一块橙色便利贴。 */
@@ -652,6 +661,13 @@ body.is-anchored .window-card {
   transition: opacity .45s var(--ease);
 }
 body.is-anchored .window-card.is-out { opacity: 0; pointer-events: none; }
+
+/* 进站期（is-anchored 但还没 settled）：卡片还没拿到锚点，四张全堆在 (0,0)。
+   这时 .wc-shell 是 opacity:0 不画，但 .wc-glow 那圈外辉光是活的（--lit 默认 1），
+   会在左上糊出一片暖光正压住标题 —— 实测 1440×900 包围盒 (24,0)–(264,192)、约 22k 暖色像素。
+   双保险：卡片层整个不画 + 把 --lit 按到 0（漏出来的任何层也不会是亮的）。 */
+html.has-js body.is-anchored:not(.is-settled) #windows { visibility: hidden; }
+body.is-anchored:not(.is-settled) .window-card { --lit: 0; }
 
 /* --- 非锚点模式（竖屏 / 窄屏 / 无 WebGL）：卡片上方一条极细冰蓝连线 --- */
 /* 只在该拆分的断点里出现（见 §11），桌面无 WebGL 的网格不画线，因为那里没有列车 */

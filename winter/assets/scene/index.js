@@ -781,6 +781,7 @@ const api = {
       return {
         snow: snow ? snow.count : 0,
         snowLayers: snow ? snow.layers : null,
+        draws: renderer ? renderer.info.render.calls : 0,
         steam: steam ? steam.count : 0,
         objects: objects,
         dpr: renderer ? renderer.getPixelRatio() : dpr,
