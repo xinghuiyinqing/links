@@ -2,7 +2,7 @@
    冬季快车 · 交互层（原生 ES module，零依赖，除 three 由 scene 自己 import）
    --------------------------------------------------------------------------
    职责：
-     1. 版本号：读上一级的 ../.d/v.txt（本地预览必定 404，兜底常量必须扛住，不许抛）
+     1. 版本号：读同目录的 .d/v.txt（与 index.html 同源，根目录部署）
      2. 锚点跟随：自建 rAF 读 WinterTrain.anchors()，lerp 0.18 定位四张卡
      3. 开场编排：用 WinterTrain.timeline 的常量排 header / 站牌条 / 卡片入场
      4. 兜底：ready reject、3s 没场景、anchors 一直为空 —— 都必须落到可用的终态
@@ -85,10 +85,10 @@ window.__wtUI = true;   /* index.html 里的兜底定时器靠这个标志判断
     }
   }
 
-  /* 本地预览时 ../.d/v.txt 一定 404 —— 这是预期行为（该目录位于部署根的上一级）。
+  /* 本地预览时 .d/v.txt 一定 404 —— 这是预期行为（.d/ 只在仓库里，不在 site/ 里）。
      r.ok 为假就原样返回空串，再由正则不匹配走兜底；catch 把网络异常整个吞掉。 */
   if (window.fetch) {
-    window.fetch('../.d/v.txt', { cache: 'no-store' })
+    window.fetch('.d/v.txt', { cache: 'no-store' })
       .then(function (r) { return r.ok ? r.text() : ''; })
       .then(function (text) {
         var m = /(\S+)\s+(\d+)/.exec(text || '');
