@@ -319,6 +319,9 @@ body.is-engaged .bg-track .grid { animation-duration: 1.05s; }
   letter-spacing: .08em;
   line-height: 1.15;
   color: var(--cream);
+  /* 中文默认可以在任意两字之间折行 —— 那会断成"内核版本下 / 载"这种。
+     keep-all 禁止在汉字间折行，只在 HTML 里写的 <wbr> 处断，断点才可控 */
+  word-break: keep-all;
 }
 .plate-note {
   font-family: var(--f-mono);
@@ -462,6 +465,11 @@ body.is-engaged .bg-track .grid { animation-duration: 1.05s; }
   .plate-arrow, .plate::after { display: none; }
   .strip { font-size: .56rem; }
   .strip-url { display: none; }
+}
+
+/* 竖屏窄板：名字放小一点点，保证"插件/直装下载"这种 7 字名字也能一行放下 */
+@media (max-aspect-ratio: 1/1) and (max-width: 480px) {
+  .plate-name { font-size: clamp(.95rem, 2.32vh, 1.27rem); }
 }
 
 /* 超窄竖屏 */
