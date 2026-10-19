@@ -22,6 +22,20 @@
 
   var W = 0, H = 0, DPR = 1;
 
+  // ══════════════════════════════════════════════════════════════════════════
+  //  ★ 背景里那四个"会动的东西"的总开关。
+  //    用户要求删掉：车厢 / 流动高光 / 尘埃 / 相机漂移。
+  //    全部 false -> 背景是一张完全静止的玻璃过山车（也顺带最省电）。
+  //    想恢复哪一个，把对应项改成 true 即可，代码都还在。
+  // ══════════════════════════════════════════════════════════════════════════
+  var FX = {
+    train: false,        // 沿轨道跑的车厢
+    pulse: false,        // 沿轨道跑的高光
+    motes: false,        // 漂浮尘埃
+    cameraDrift: false   // 相机缓慢环绕
+  };
+  var ANY_FX = FX.train || FX.pulse || FX.motes || FX.cameraDrift;
+
   /* ---------------------------------------------------------------- 三维工具 */
   function v3(x, y, z) { return { x: x, y: y, z: z }; }
   function sub(a, b) { return v3(a.x - b.x, a.y - b.y, a.z - b.z); }
@@ -170,8 +184,8 @@
     // ---- 地面：冷色带 + 透视网格 ----
     var gg = lc.createLinearGradient(0, horizonY, 0, H);
     gg.addColorStop(0, 'rgba(214,232,250,0)');
-    gg.addColorStop(0.35, 'rgba(206,228,250,.5)');
-    gg.addColorStop(1, 'rgba(188,216,246,.82)');
+    gg.addColorStop(0.35, 'rgba(226,234,241,.5)');
+    gg.addColorStop(1, 'rgba(210,221,231,.85)');
     lc.fillStyle = gg;
     lc.fillRect(0, horizonY, W, H - horizonY);
 
@@ -186,7 +200,7 @@
       if (!a0 || !a1) continue;
       gp.moveTo(a0.x, a0.y); gp.lineTo(a1.x, a1.y);
     }
-    lc.strokeStyle = 'rgba(120,170,225,.15)';
+    lc.strokeStyle = 'rgba(140,162,186,.16)';
     lc.lineWidth = 1;
     lc.stroke(gp);
 
@@ -391,8 +405,13 @@
   var lastLayerT = -1, layerBudget = 1 / 30;
 
   function draw(tSec) {
-    cam.yaw = 0.55 + Math.sin(tSec * 0.05) * 0.30;
-    cam.pitch = -0.16 + Math.sin(tSec * 0.037 + 1.1) * 0.030;
+    if (FX.cameraDrift) {
+      cam.yaw = 0.55 + Math.sin(tSec * 0.05) * 0.30;
+      cam.pitch = -0.16 + Math.sin(tSec * 0.037 + 1.1) * 0.030;
+    } else {
+      cam.yaw = 0.55;            // 固定机位
+      cam.pitch = -0.16;
+    }
     cam.focal = Math.min(W, H) * 1.55;
 
     if (lastLayerT < 0 || tSec - lastLayerT >= layerBudget) {
@@ -404,9 +423,9 @@
     ctx.clearRect(0, 0, W, H);
     ctx.drawImage(layerCv, 0, 0, W, H);
 
-    drawPulse(tSec);
-    drawTrain(tSec);
-    drawMotes(tSec);
+    if (FX.pulse) drawPulse(tSec);
+    if (FX.train) drawTrain(tSec);
+    if (FX.motes) drawMotes(tSec);
   }
 
   /* ---------------------------------------------------------------- 尺寸 */
@@ -423,9 +442,10 @@
     skyCv.width = Math.max(1, Math.round(W));
     skyCv.height = Math.max(1, Math.round(H));
     var g = skyCtx.createLinearGradient(0, 0, 0, skyCv.height);
-    g.addColorStop(0, '#f2f9ff');
-    g.addColorStop(0.45, '#e4f1ff');
-    g.addColorStop(1, '#d3e8ff');
+    // 底色改中性冷灰白：蓝色只留给玻璃轨道和 UI，不再给整片背景上蓝滤镜
+    g.addColorStop(0, '#f8fafc');
+    g.addColorStop(0.45, '#eff4f8');
+    g.addColorStop(1, '#e4ebf1');
     skyCtx.fillStyle = g;
     skyCtx.fillRect(0, 0, skyCv.width, skyCv.height);
 
@@ -443,19 +463,20 @@
 
   function start() {
     resize();
-    if (reduce) { draw(12.0); return; }
+    // 关了动效 / 系统要求减少动态 / 四个东西全关 -> 只画一帧，不进循环
+    if (reduce || !ANY_FX) { draw(12.0); return; }
     raf = window.requestAnimationFrame(loop);
   }
 
   document.addEventListener('visibilitychange', function () {
     if (document.hidden) { running = false; window.cancelAnimationFrame(raf); }
-    else if (!reduce) { running = true; t0 = 0; raf = window.requestAnimationFrame(loop); }
+    else if (!reduce && ANY_FX) { running = true; t0 = 0; raf = window.requestAnimationFrame(loop); }
   });
 
   var rt = 0;
   window.addEventListener('resize', function () {
     window.clearTimeout(rt);
-    rt = window.setTimeout(function () { resize(); if (reduce) draw(12.0); }, 180);
+    rt = window.setTimeout(function () { resize(); if (reduce || !ANY_FX) draw(12.0); }, 180);
   }, { passive: true });
 
   start();
