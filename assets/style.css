@@ -195,10 +195,11 @@ body {
   min-height: 0;
   border-radius: 20px;
   border: 1px solid var(--edge);
+  /* ★ 这里【不能】用 backdrop-filter: 背景是一个全屏 60fps 动画画布,
+     四块板每帧都要重算一大片高斯模糊, 这是移动端最贵的合成操作, 会直接卡死。
+     改用不透明一点的渐变 + 内高光, 视觉几乎一致但零合成开销。 */
   background:
-    linear-gradient(158deg, rgba(255,255,255,.66) 0%, rgba(255,255,255,.40) 44%, rgba(228,241,255,.50) 100%);
-  backdrop-filter: blur(26px) saturate(190%);
-  -webkit-backdrop-filter: blur(26px) saturate(190%);
+    linear-gradient(158deg, rgba(255,255,255,.80) 0%, rgba(248,252,255,.62) 44%, rgba(226,240,255,.68) 100%);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 1),
     inset 0 -1px 0 rgba(150, 190, 235, .30),
@@ -317,7 +318,7 @@ body {
     transform: translateZ(62px);
     border-color: rgba(255, 255, 255, 1);
     background:
-      linear-gradient(158deg, rgba(255,255,255,.94) 0%, rgba(240,248,255,.72) 44%, rgba(216,236,255,.78) 100%);
+      linear-gradient(158deg, rgba(255,255,255,.93) 0%, rgba(244,250,255,.78) 44%, rgba(214,234,255,.82) 100%);
     box-shadow:
       inset 0 1px 0 #fff,
       inset 0 -1px 0 rgba(150, 190, 235, .3),
@@ -377,8 +378,8 @@ body {
   border-radius: 999px;
   border: 1px solid var(--edge);
   background: rgba(255, 255, 255, .88);
-  backdrop-filter: blur(18px) saturate(170%);
-  -webkit-backdrop-filter: blur(18px) saturate(170%);
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
   box-shadow: 0 12px 34px -12px rgba(47, 127, 224, .40), inset 0 1px 0 #fff;
   color: var(--ink);
   font-size: .86rem;
