@@ -1,132 +1,245 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
+﻿<!DOCTYPE html>
+<html lang="zh-CN" class="no-js">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="color-scheme" content="dark">
-<meta name="theme-color" content="#eaf4ff">
-<title>星绘引擎 · 王牌竞速</title>
-<meta name="description" content="星绘引擎：王牌竞速全渠道服辅助。内核版本下载、插件/直装下载、一键加群、24 小时购卡。">
-<meta property="og:title" content="星绘引擎 · 王牌竞速">
-<meta property="og:description" content="内核版本下载 · 插件/直装下载 · 一键加群 · 24 小时购卡">
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#e9f0f6">
+<title>星绘引擎 · 王牌竞速辅助科技</title>
+<meta name="description" content="星绘引擎 · 王牌竞速辅助科技：内核下载、插件与直装包、一键加群、24 小时购卡。四扇亮着的车窗，就是四个入口。">
 <meta property="og:type" content="website">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23ffffff'/%3E%3Cstop offset='1' stop-color='%23bcddff'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='14' fill='url(%23g)'/%3E%3Cpath d='M12 42c8-22 16-22 20 0 4-22 12-22 20 0' stroke='%232f7fe0' stroke-width='4.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+<meta property="og:site_name" content="星绘引擎">
+<meta property="og:title" content="星绘引擎 · 王牌竞速辅助科技">
+<meta property="og:description" content="王牌竞速辅助科技 · 内核 v1.9 · 插件直装 · 一键加群 · 24 小时购卡">
+<meta name="format-detection" content="telephone=no">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%230d1620'/%3E%3Cpath d='M13 55V33a19 19 0 0 1 38 0v22z' fill='%23ffb257'/%3E%3Cpath d='M18 55V33a14 14 0 0 1 28 0v22z' fill='none' stroke='%23ffd9a0' stroke-width='1.8'/%3E%3Cpath d='M32 20v35M18 33.5 46 47M46 33.5 18 47' stroke='%23a9500f' stroke-width='1.5' opacity='.65'/%3E%3Cpath d='M6 55h52' stroke='%23c6d6e3' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=JetBrains+Mono:wght@400;600&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/style.css">
+<!-- 字体不阻塞首屏：先用系统字体画，字体到了再换（display=swap 已经是这个语义）。
+     同步 <link rel="stylesheet"> 会卡住第一次绘制，实测能吃掉 1s 以上的 FCP。 -->
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@900&family=Unbounded:wght@600;800&display=swap"
+      rel="stylesheet" media="print" onload="this.media='all'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@900&family=Unbounded:wght@600;800&display=swap" rel="stylesheet"></noscript>
+<link rel="stylesheet" href="./assets/style.css">
+<script>document.documentElement.className = 'has-js';</script>
+<script type="importmap">{"imports":{"three":"./assets/vendor/three.module.js"}}</script>
 </head>
-<body>
-<a class="skip" href="#plates">跳到下载入口</a>
 
-<!-- ===== 背景：透明玻璃过山车（assets/coaster.js 手写软件 3D 渲染） ===== -->
-<div class="bg" aria-hidden="true">
-  <canvas id="coaster"></canvas>
-  <div class="bg-grain"></div>
-</div>
+<body class="is-boot">
 
-<div class="stage">
-  <main class="deck" id="deck">
+<a class="skip" href="#windows">跳到四个下载入口</a>
 
-    <header class="brand">
-      <p class="kicker"><span class="dot"></span>STARDRAW ENGINE</p>
-      <h1 class="title">星绘引擎</h1>
-      <p class="sub">王牌竞速 · 全渠道服 · <span id="verText">v1.9</span></p>
+<div id="stage">
+
+  <!-- 3D 场景：scene 只负责往 #scene-canvas 里画，UI 不碰它的内容 -->
+  <div id="scene" aria-hidden="true"><canvas id="scene-canvas"></canvas></div>
+
+  <div id="hud">
+
+    <header class="hud-head">
+      <p class="head-word">王牌竞速辅助科技</p>
+      <h1 class="head-title">星绘引擎</h1>
+      <div class="head-subrow">
+        <p class="head-sub">
+          <span class="sub-wide">四扇亮着的窗 · 内核 / 插件直装 / 加群 / 24 小时购卡</span>
+          <span class="sub-narrow">四扇窗 · 内核 / 插件 / 加群 / 购卡</span>
+        </p>
+        <p class="head-ver"><span>内核</span><b id="head-ver">v1.9</b></p>
+      </div>
     </header>
 
-    <!-- 发车牌：开场 0.85s，纯装饰，不挡点击 -->
-    <div class="lights" id="lights" aria-hidden="true">
-      <i></i><i></i><i></i><i></i><i></i>
-    </div>
+    <!-- 四扇车窗 = 四个入口。顺序 01→04 是真实顺序，从车头到车尾。 -->
+    <nav id="windows" tabindex="-1" aria-label="四个下载入口">
 
-    <section class="plates" id="plates" aria-label="入口">
-
-      <a class="plate plate--dl" id="dlPlate" href=".d/nh_latest.sh" download="王牌竞速内核.sh" rel="noopener">
-        <span class="plate-top">
-          <span class="plate-ico" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v10.6"/><path d="m7.7 10.4 4.3 4.3 4.3-4.3"/><path d="M4.5 19.5h15"/></svg>
+      <a class="window-card" data-slot="0" id="win-0"
+         href=".d/nh_latest.sh" download="王牌竞速内核.sh"
+         aria-label="星绘引擎：下载王牌竞速内核 v1.9，文件名 王牌竞速内核.sh，体积 12.1 MB">
+        <span class="wc-glow" aria-hidden="true"></span>
+        <span class="wc-shell">
+          <span class="wc-lit" aria-hidden="true"></span>
+          <span class="wc-frost" aria-hidden="true"></span>
+          <span class="wc-glare" aria-hidden="true"></span>
+          <span class="wc-brand" aria-hidden="true">星绘引擎</span>
+          <span class="wc-body">
+            <span class="wc-rail">
+              <span class="wc-idx" aria-hidden="true">01</span>
+              <span class="wc-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 3.4v9.7"/><path d="m8.1 9.3 3.9 3.9 3.9-3.9"/>
+                  <path d="M4.5 15.4v3.2a1.7 1.7 0 0 0 1.7 1.7h11.6a1.7 1.7 0 0 0 1.7-1.7v-3.2"/>
+                </svg>
+              </span>
+            </span>
+            <span class="wc-data">
+              <span class="wc-value" data-wc-value>v1.9</span>
+              <span class="wc-name">内核版本下载</span>
+              <span class="wc-note" data-wc-note>12.1 MB</span>
+            </span>
           </span>
-          <span class="plate-tag">DIRECT</span>
-        </span>
-        <span class="plate-body">
-          <span class="plate-value" id="dlValue">v1.9</span>
-          <b class="plate-name">内核版本<wbr>下载</b>
-          <span class="plate-note" id="dlNote">12.1 MB</span>
-        </span>
-        <span class="plate-arrow" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13"/><path d="m12.5 6 6 6-6 6"/></svg>
+          <span class="wc-sill" aria-hidden="true"></span>
+          <span class="wc-arrow" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4.6 12h14"/><path d="m13 6.5 5.5 5.5-5.5 5.5"/>
+            </svg>
+          </span>
         </span>
       </a>
 
-      <a class="plate plate--pan" href="https://pan.quark.cn/s/dd3c3e5637be" target="_blank" rel="noopener noreferrer">
-        <span class="plate-top">
-          <span class="plate-ico" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7.6h6l1.8 2.2H20v8.7H4Z"/><path d="M4 7.6V6.2A1.6 1.6 0 0 1 5.6 4.6h3.8L11.5 6.2"/></svg>
+      <a class="window-card" data-slot="1" id="win-1"
+         href="https://pan.quark.cn/s/dd3c3e5637be" target="_blank" rel="noopener noreferrer"
+         aria-label="星绘引擎：在夸克网盘打开插件与直装包下载页，新窗口">
+        <span class="wc-glow" aria-hidden="true"></span>
+        <span class="wc-shell">
+          <span class="wc-lit" aria-hidden="true"></span>
+          <span class="wc-frost" aria-hidden="true"></span>
+          <span class="wc-glare" aria-hidden="true"></span>
+          <span class="wc-brand" aria-hidden="true">星绘引擎</span>
+          <span class="wc-body">
+            <span class="wc-rail">
+              <span class="wc-idx" aria-hidden="true">02</span>
+              <span class="wc-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 3.1 20 7.4v9.2L12 20.9 4 16.6V7.4z"/>
+                  <path d="m4 7.4 8 4.3 8-4.3"/><path d="M12 11.7v9.2"/>
+                </svg>
+              </span>
+            </span>
+            <span class="wc-data">
+              <span class="wc-value">夸克网盘</span>
+              <span class="wc-name">插件直装</span>
+              <span class="wc-note">新窗口</span>
+            </span>
           </span>
-          <span class="plate-tag">MIRROR</span>
-        </span>
-        <span class="plate-body">
-          <span class="plate-value">夸克网盘</span>
-          <b class="plate-name">插件/<wbr>直装下载</b>
-          <span class="plate-note">插件 · 直装包</span>
-        </span>
-        <span class="plate-arrow" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13"/><path d="m12.5 6 6 6-6 6"/></svg>
+          <span class="wc-sill" aria-hidden="true"></span>
+          <span class="wc-arrow" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4.6 12h14"/><path d="m13 6.5 5.5 5.5-5.5 5.5"/>
+            </svg>
+          </span>
         </span>
       </a>
 
-      <!-- 一键加群：mqqapi 是 QQ 官方的群卡片 scheme，点一下直接唤起 QQ 到群页面。
-           实测：force-stop QQ 后点这个 intent，QQ 被拉起且前台是
-           com.tencent.mobileqq/.activity.QPublicFragmentActivity（群卡片） -->
-      <a class="plate plate--grp" id="qqJoin" rel="noopener"
-         href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1104108350&amp;card_type=group&amp;source=qrcode">
-        <span class="plate-top">
-          <span class="plate-ico" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20.3c-4.2 0-7-2.8-7-6.7 0-3.9 3-7.6 7-7.6s7 3.7 7 7.6c0 3.9-2.8 6.7-7 6.7Z"/><path d="M9.4 11.3h.01M14.6 11.3h.01"/><path d="M9.7 14.7c1.4 1 3.2 1 4.6 0"/></svg>
+      <!-- mqqapi 是 QQ 官方的群卡片 scheme，能直接把 QQ 拉到群页面。
+           唤起失败由 app.js 在 1.8s 后兜底提示 + 可点复制群号。 -->
+      <a class="window-card" data-slot="2" id="win-2" rel="noopener"
+         href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1104108350&amp;card_type=group&amp;source=qrcode"
+         aria-label="星绘引擎：在 QQ 里打开群 1104108350 的加群页面">
+        <span class="wc-glow" aria-hidden="true"></span>
+        <span class="wc-shell">
+          <span class="wc-lit" aria-hidden="true"></span>
+          <span class="wc-frost" aria-hidden="true"></span>
+          <span class="wc-glare" aria-hidden="true"></span>
+          <span class="wc-brand" aria-hidden="true">星绘引擎</span>
+          <span class="wc-body">
+            <span class="wc-rail">
+              <span class="wc-idx" aria-hidden="true">03</span>
+              <span class="wc-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="9.2" cy="9" r="3.3"/>
+                  <path d="M3.4 19.6c.4-3.1 2.8-5 5.8-5s5.4 1.9 5.8 5"/>
+                  <path d="M15.7 6.5a3.2 3.2 0 0 1 0 6"/>
+                  <path d="M16.6 14.9c2.3.4 3.8 2.1 4.2 4.5"/>
+                </svg>
+              </span>
+            </span>
+            <span class="wc-data">
+              <span class="wc-value">1104108350</span>
+              <span class="wc-name">加入群聊</span>
+              <span class="wc-note">点一下唤起 QQ</span>
+            </span>
           </span>
-          <span class="plate-tag">GROUP</span>
-        </span>
-        <span class="plate-body">
-          <span class="plate-value">一键加入</span>
-          <b class="plate-name">加入群聊</b>
-          <span class="plate-note">获取内核/软件最新版</span>
-        </span>
-        <span class="plate-arrow" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="11" height="11" rx="2.2"/><path d="M15.5 5.5H7a2 2 0 0 0-2 2V16"/></svg>
+          <span class="wc-sill" aria-hidden="true"></span>
+          <span class="wc-arrow" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="8.2" y="8.2" width="10.8" height="10.8" rx="2.1"/>
+              <path d="M15.4 5.6H6.9a1.9 1.9 0 0 0-1.9 1.9v8.4"/>
+            </svg>
+          </span>
         </span>
       </a>
 
-      <a class="plate plate--buy" href="https://ds.xiaoman.top/links/9261E5EF" target="_blank" rel="noopener noreferrer">
-        <span class="plate-top">
-          <span class="plate-ico" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.8 8.6h16.4v3.6a1.95 1.95 0 0 0 0 3.9v3.6H3.8v-3.6a1.95 1.95 0 0 0 0-3.9Z"/><path d="M12 8.6v10.9" stroke-dasharray="2.1 2.1"/><path d="M7.5 12v3.1M16.5 12v3.1"/></svg>
+      <a class="window-card" data-slot="3" id="win-3"
+         href="https://ds.xiaoman.top/links/9261E5EF" target="_blank" rel="noopener noreferrer"
+         aria-label="星绘引擎：在新窗口打开 24 小时购卡页，自动发货">
+        <span class="wc-glow" aria-hidden="true"></span>
+        <span class="wc-shell">
+          <span class="wc-lit" aria-hidden="true"></span>
+          <span class="wc-frost" aria-hidden="true"></span>
+          <span class="wc-glare" aria-hidden="true"></span>
+          <span class="wc-brand" aria-hidden="true">星绘引擎</span>
+          <span class="wc-body">
+            <span class="wc-rail">
+              <span class="wc-idx" aria-hidden="true">04</span>
+              <span class="wc-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3.5 8.6h17v3.5a1.9 1.9 0 0 0 0 3.8v3.5h-17v-3.5a1.9 1.9 0 0 0 0-3.8z"/>
+                  <path d="M12 8.6v10.8" stroke-dasharray="2 2.1"/>
+                  <path d="M7.2 12.1v3.4M16.8 12.1v3.4"/>
+                </svg>
+              </span>
+            </span>
+            <span class="wc-data">
+              <span class="wc-value">秒发</span>
+              <span class="wc-name">24 小时购卡</span>
+              <span class="wc-note">自动发货</span>
+            </span>
           </span>
-          <span class="plate-tag">24H</span>
-        </span>
-        <span class="plate-body">
-          <span class="plate-value">秒发</span>
-          <b class="plate-name">24小时购卡</b>
-          <span class="plate-note">自动发货 · 全天在线</span>
-        </span>
-        <span class="plate-arrow" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13"/><path d="m12.5 6 6 6-6 6"/></svg>
+          <span class="wc-sill" aria-hidden="true"></span>
+          <span class="wc-arrow" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4.6 12h14"/><path d="m13 6.5 5.5 5.5-5.5 5.5"/>
+            </svg>
+          </span>
         </span>
       </a>
 
-    </section>
+    </nav>
 
-    <footer class="strip">
-      <span class="strip-i"><i class="led"></i>在线</span>
-      <span class="strip-i">TG <b>artday2026</b></span>
-      <span class="strip-i strip-url">xinghuiyinqing.github.io/links</span>
+    <footer id="board">
+      <span class="board-brand">星绘引擎</span>
+      <span class="board-rule" aria-hidden="true"></span>
+      <p class="board-live" role="status"><i class="board-led" aria-hidden="true"></i>在线</p>
+      <span class="board-rule" aria-hidden="true"></span>
+      <button class="board-copy" type="button" data-copy="artday2026" data-copy-label="TG 号">TG <b>artday2026</b></button>
+      <span class="board-rule" aria-hidden="true"></span>
+      <span class="board-url">xinghuiyinqing.github.io/links/winter</span>
     </footer>
 
-  </main>
-</div>
+  </div><!-- /#hud -->
+</div><!-- /#stage -->
 
-<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
-<script src="assets/coaster.js" defer></script>
-<script src="assets/app.js" defer></script>
+<script>
+/* 最后一道兜底：若 scene 卡在顶层 await 或模块报错，app.js 根本不会执行。
+   3.6s 后 UI 仍未接管，就直接落终态，绝不停在"白屏等 3D"上。 */
+window.setTimeout(function () {
+  if (window.__wtUI) return;
+  var b = document.body;
+  b.classList.add('is-live', 'is-settled', 'is-nogl');
+  b.setAttribute('data-detached', 'true');
+}, 3600);
+</script>
+
+<!-- 文字入场与 3D 彻底解耦：这一小段是 classic script，解析到这里就执行，
+     不必等 scene 的 module（three.js 解析要 1s+）—— 首屏文字 120ms 就开始出现。
+     数值直接抄契约时间轴；app.js 之后拿到 WinterTrain.timeline 会再校准一次（值相同，不会跳）。 -->
+<script>
+(function () {
+  var root = document.documentElement, body = document.body;
+  var washIn = 0, depart = 250;
+  root.style.setProperty('--d-head-1', (washIn + 120) + 'ms');
+  root.style.setProperty('--d-head-2', (washIn + 380) + 'ms');
+  root.style.setProperty('--d-head-3', (depart + 220) + 'ms');
+  root.style.setProperty('--d-board', (depart + 620) + 'ms');
+  requestAnimationFrame(function () {
+    requestAnimationFrame(function () { body.classList.add('is-live'); });
+  });
+})();
+</script>
+
+<!-- importmap 已在 <head> 里、位于所有 module script 之前，此处不再重复（重复会报错） -->
+<script type="module" src="./assets/scene/index.js"></script>
+<script type="module" src="./assets/app.js"></script>
 </body>
 </html>
