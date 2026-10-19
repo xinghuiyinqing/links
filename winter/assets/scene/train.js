@@ -418,6 +418,54 @@ function buildLocoSteel(b) {
   }
 
   /* ---- 车头灯：灯箱 + 抛物面反光碗 ---- */
+  /* ================= 驾驶室精修（在原有底板/立柱/端板之上补细节） ======== */
+  {
+    const cxm = (cx0 + cx1) * 0.5;
+    const len = cx1 - cx0;
+    /* 车顶外挑檐：比侧墙宽 0.06，下面一道暗缝（用一条薄板压出阴影线） */
+    b.add(new THREE.BoxGeometry(len + 0.26, 0.055, cabW * 2 + 0.30),
+      mat4(cxm, cabY1 + 0.135, 0), steel);
+    b.add(new THREE.BoxGeometry(len + 0.10, 0.030, cabW * 2 + 0.10),
+      mat4(cxm, cabY1 + 0.098, 0), steel);
+    /* 侧窗中竖棂（把大窗分成两格）+ 下窗台 */
+    for (let s = -1; s <= 1; s += 2) {
+      const z = s * (cabW + 0.045);
+      b.add(new THREE.BoxGeometry(0.048, winY1 - winY0, 0.05),
+        mat4((winX0 + winX1) * 0.5, (winY0 + winY1) * 0.5, z), steel);
+      b.add(new THREE.BoxGeometry(winX1 - winX0 + 0.10, 0.045, 0.075),
+        mat4((winX0 + winX1) * 0.5, winY0 - 0.03, z), steel);
+    }
+    /* 侧门：带门框、把手、两个折页（做在近侧 s>0） */
+    const dz = cabW + 0.05;
+    const dxp = cx0 + 0.34;
+    b.add(new THREE.BoxGeometry(0.44, 1.34, 0.055), mat4(dxp, 2.62, dz), steel);
+    b.add(new THREE.BoxGeometry(0.50, 0.055, 0.075), mat4(dxp, 3.31, dz), steel);
+    b.add(new THREE.BoxGeometry(0.50, 0.055, 0.075), mat4(dxp, 1.94, dz), steel);
+    b.add(new THREE.BoxGeometry(0.055, 1.30, 0.075), mat4(dxp - 0.24, 2.62, dz), steel);
+    b.add(new THREE.BoxGeometry(0.055, 1.30, 0.075), mat4(dxp + 0.24, 2.62, dz), steel);
+    b.add(new THREE.CylinderGeometry(0.020, 0.020, 0.16, 6),
+      mat4(dxp + 0.14, 2.52, dz + 0.055), steel);
+    for (let k = 0; k < 2; k++) {
+      b.add(new THREE.BoxGeometry(0.09, 0.07, 0.045), mat4(dxp - 0.21, 2.10 + k * 1.02, dz + 0.05), steel);
+    }
+    /* 踏梯补第三级 + 两根立杆 */
+    for (let s = -1; s <= 1; s += 2) {
+      b.add(new THREE.BoxGeometry(0.44, 0.055, 0.30), mat4(cx0 + 0.30, 0.80, s * (cabW + 0.10)), steel);
+      b.add(new THREE.CylinderGeometry(0.020, 0.020, 1.45, 6),
+        mat4(cx0 + 0.10, 1.52, s * (cabW + 0.14)), steel);
+    }
+    /* 后部煤斗（水柜式机车）：一圈加强筋 + 一个不规则煤堆顶面 */
+    b.add(new THREE.BoxGeometry(0.10, 0.78, cabW * 1.86), mat4(cx0 + 0.16, cabY0 + 0.55, 0), steel);
+    b.add(new THREE.BoxGeometry(0.52, 0.10, cabW * 1.70), mat4(cx0 + 0.34, cabY0 + 0.96, 0), steel);
+    for (let k = 0; k < 3; k++) {
+      b.add(new THREE.BoxGeometry(0.055, 0.66, cabW * 1.70),
+        mat4(cx0 + 0.12 + k * 0.17, cabY0 + 0.55, 0), steel);
+    }
+    /* 驾驶室顶的通风帽 */
+    b.add(new THREE.CylinderGeometry(0.10, 0.13, 0.14, 10), mat4(cxm + 0.24, cabY1 + 0.22, 0), steel);
+    b.add(new THREE.CylinderGeometry(0.16, 0.10, 0.06, 10), mat4(cxm + 0.24, cabY1 + 0.32, 0), steel);
+  }
+
   const lampX = 4.72, lampY = 2.94;
   b.add(new THREE.CylinderGeometry(0.215, 0.215, 0.42, 16, 1, true)
     .rotateZ(-Math.PI * 0.5), mat4(lampX, lampY, 0), steel);

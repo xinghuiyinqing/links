@@ -114,6 +114,9 @@ const S = {
   chimneyX: 0,
   lampView: null,
   snowCone: null,
+  ripple: 0,
+  rippleT0: 0,
+  rippleX: 0,
   chimneyY: 0,
   domeX: 0,
   lampX: 0,
@@ -511,6 +514,9 @@ function evaluateTimeline() {
   if (stateName === 'arriving' && t >= TIMELINE.settled) {
     setState('settled');
     anchorsValid = false;
+    S.ripple = 0.0001;
+    S.rippleT0 = nowMs();
+    S.rippleX = S.winX[1];
   }
   /* 3300 停稳 → 4200 完全就位，这一段仍然保持 'arriving'：
      契约里的中途状态只有 settled 一个。 */
@@ -635,6 +641,10 @@ function frame(now) {
 
   /* ---- 锚点：只有 settled 之后才有效 ---- */
   if (stateName === 'settled') {
+    /* (13) 一次性雪尘涟漪：1.4s 内 0→1 */
+    if (S.ripple > 0 && S.ripple < 1) {
+      S.ripple = Math.min(1, (nowMs() - S.rippleT0) / 1400);
+    }
     refreshAnchors();
   } else {
     anchorsValid = false;

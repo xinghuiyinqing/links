@@ -90,6 +90,7 @@ export function createSteam(opts) {
   let residTimer = 0;
   let whistleDone = false;
   let emittedTotal = 0;
+  let sprayTimer = 0;
 
   function emit(x, y, tSec, speedMul, scaleMul) {
     const n = activeMax;
@@ -151,6 +152,12 @@ export function createSteam(opts) {
       whistleDone = true;
       for (let k = 0; k < 7; k++) {
         emit(cx + (rnd() - 0.5) * 0.2, cy + 0.35 + rnd() * 0.2, tSec, 0.9 + rnd() * 0.5, 0.55 + rnd() * 0.35);
+        /* ---- (2) 汽笛白汽：汽笛在机车局部 3.30（烟囱 3.95），
+           细、短、快，是一根被高压顶出来的白柱，跟烟囱的烟分开。 */
+        for (let k = 0; k < 9; k++) {
+          emit(S.chimneyX - 0.65, S.chimneyY + 0.42,
+            tSec - k * 0.012, 1.9 + rnd() * 0.7, 0.16 + rnd() * 0.10);
+        }
       }
     }
 
@@ -164,6 +171,20 @@ export function createSteam(opts) {
       if (stopped && rnd() > 0.55) {
         /* 汽包上的安全阀：细长的一缕白汽 */
         emit(S.domeX, S.domeY, tSec, 0.85 + rnd() * 0.3, 0.20 + rnd() * 0.12);
+      }
+      /* ---- (1) 轮下扬雪：动轮踏面把雪往后抛 ----
+         坐标从烟囱反推：后动轮在机车局部 -2.55，烟囱在 +3.95，差 6.50。
+         只加发射源，复用同一个 Points 系统，draw call 不变。 */
+      if (S.speed > 2.0) {
+        sprayTimer += dt;
+        const period = S.speed > 9 ? 0.045 : 0.11;
+        if (sprayTimer >= period) {
+          sprayTimer = 0;
+          const sx = S.chimneyX - 6.50 + (rnd() - 0.5) * 1.6;
+          const sy = 0.52 + rnd() * 0.16;
+          emit(sx, sy, tSec, 0.10 + rnd() * 0.10, 0.16 + rnd() * 0.14);
+          emit(sx + 0.5 + rnd() * 0.5, sy, tSec, 0.08 + rnd() * 0.08, 0.10 + rnd() * 0.10);
+        }
       }
     }
 

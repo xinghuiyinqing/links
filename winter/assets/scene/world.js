@@ -105,6 +105,7 @@ export function createWorld(renderer, scene, tierName, tier) {
     uLampColor: { value: srgb(PAL.lampDeep) },
     uLampPos: { value: new THREE.Vector2(0, 3.2) },
     uLampRadius: { value: 8.5 },
+  uRipple: { value: new THREE.Vector4(0, 0, 0, 2.15) },
     uLampPower: { value: 0.0 },
     uWin: { value: [new THREE.Vector4(), new THREE.Vector4(), new THREE.Vector4(), new THREE.Vector4()] },
     uWinColor: { value: srgb(0xff9b3a) },
@@ -327,6 +328,19 @@ export function createWorld(renderer, scene, tierName, tier) {
     U.uLampPos.value.set(lampX + 3.2, 3.0);
     U.uLampPower.value = (0.30 + 0.20 * S.exposure) * (S.state === 'settled' ? 1 : 0.95);
     U.uLampRadius.value = 8.4;
+
+    /* ---- (13) 停稳雪尘涟漪：由 S.ripple（0..1）驱动 ---- */
+    const rp = S.ripple || 0;
+    if (rp > 0.001) {
+      U.uRipple.value.set(S.rippleX || S.winX[0], 2.5 + rp * 24.0, (1.0 - rp) * 0.9, 2.6);
+    } else {
+      U.uRipple.value.set(0, 0, 0, 2.6);
+    }
+
+    /* ---- (7) 信号灯缓慢明暗：直接改 aSize，两盏远处小灯 ---- */
+    glowSize[5] = 0.30 * (0.55 + 0.45 * Math.sin(t * 0.55));
+    glowSize[6] = 0.22 * (0.30 + 0.70 * Math.max(0, Math.sin(t * 1.35 + 1.2)));
+    glowGeo.attributes.aSize.needsUpdate = true;
 
     /* ---- 四扇窗在雪上烤出的暖斑 ---- */
     const wv = U.uWin.value;
