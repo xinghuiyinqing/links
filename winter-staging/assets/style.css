@@ -1,0 +1,929 @@
+﻿/* ==========================================================================
+   冬季快车 · ЗИМНИЙ ЭКСПРЕСС —— UI 外壳
+   --------------------------------------------------------------------------
+   世界是【白雪皑皑的暴雪白天】：白到发蓝的雪天 + 近黑钢铁的车体 +
+   唯一一点暖：四扇车窗里的琥珀灯。UI 是雪地上的印刷品，深墨色字。
+   · 暖色只出现在 --lamp 家族（窗内灯、灯缘、黄铜框用 lamp 加 alpha 得到）
+   · 页面是浅色底 → 文字一律深墨 / 冰蓝深色，对比度 ≥ 4.5:1
+   · 卡片是深烟色玻璃（和车体同族），暖光是被关在窗里的那一小池光
+   · 圆角只给车窗（拱形），别处克制
+   · 卡片背后【绝不】用 backdrop-filter —— 底下一个全屏 60fps 画布，
+     四块 backdrop-filter 会把合成器打死；用不透明渐变 + 内高光代替
+   ========================================================================== */
+
+/* ============================== 0. 令牌 ============================== */
+:root {
+  /* 契约 §8 的设计令牌，原样落进来 */
+  --snow-0: #f4f8fb;  --snow-1: #e4edf4;  --snow-2: #c6d6e3;
+  --steel-0: #0d1620; --steel-1: #1a2833; --steel-2: #2c3f4d;
+  --lamp: #ffb257;    --lamp-hot: #ffd9a0; --lamp-deep: #e07a1f;
+  --ice: #79cfe6;     --ice-deep: #2f7db0;
+  --ink: #0b1a26;     --ink-2: #33556e;   --ink-dim: #6d8ba1;
+
+  /* 黄铜窗框 = lamp 家族加 alpha，不引入新色相 */
+  --frame-hi: rgb(255 217 160 / .78);
+  --frame-lo: rgb(224 122 31 / .46);
+  --frame-gap: rgb(11 26 38 / .62);
+
+  /* 字 */
+  --f-display: "Unbounded", "JetBrains Mono", ui-sans-serif, system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+  --f-serif: "Noto Serif SC", "Songti SC", "SimSun", ui-serif, Georgia, serif;
+  --f-body: "Noto Sans SC", system-ui, -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", "Cascadia Mono", Menlo, Consolas, monospace;
+
+  /* 缓动 */
+  --ease: cubic-bezier(.22, .68, .24, 1);
+  --ease-out: cubic-bezier(.16, .84, .24, 1);
+
+  /* 编排节奏：app.js 会用 WinterTrain.timeline 覆盖这几个值 */
+  --d-head-1: 140ms;
+  --d-head-2: 380ms;
+  --d-head-3: 620ms;
+  --d-board: 900ms;
+
+  /* 版式 */
+  --pad-x: clamp(14px, 2.4vw, 30px);
+  --pad-y: clamp(12px, 2.2vh, 24px);
+  --card-min: 200px;
+  --card-max: 320px;
+}
+
+/* ============================== 1. 基础 ============================== */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body { height: 100%; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; color-scheme: light; }
+
+body {
+  margin: 0;
+  overflow: hidden;                 /* 全屏一屏，任何断点都不许滚 */
+  overscroll-behavior: none;
+  /* 雪天：画布没上屏（首帧前 / 无 WebGL）时也必须是白雪，不能是暗夜 */
+  background: linear-gradient(180deg, #f4f8fb 0%, #e9f0f6 46%, #dfe9f1 72%, #cfdde8 100%);
+  background-attachment: fixed;
+  color: var(--ink);
+  font-family: var(--f-body);
+  font-size: 16px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 无 WebGL：CSS 兜一片远山 + 地平线，让"雪原"这件事仍然成立 */
+@media all {
+  body.is-nogl::before {
+    content: "";
+    position: fixed; inset: 0; z-index: 0;
+    pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 420' preserveAspectRatio='xMidYMax slice'%3E%3Cpath d='M0 322 130 246 226 286 336 188 452 268 540 226 690 322Z' fill='%239fb2c4' opacity='.26'/%3E%3Cpath d='M470 322 606 210 706 262 826 176 950 258 1076 218 1200 284 1306 236 1440 308v112H0V322Z' fill='%23b9c9d8' opacity='.48'/%3E%3Cpath d='M0 420v-64q360-40 720-22t720-32v118Z' fill='%23f4f8fb' opacity='.9'/%3E%3Cpath d='M0 356q360-40 720-22t720-32' fill='none' stroke='%23c6d6e3' stroke-width='1.5' opacity='.9'/%3E%3C/svg%3E");
+    background-position: center bottom;
+    background-size: 100% auto;
+    background-repeat: no-repeat;
+  }
+}
+
+/* 无 WebGL 时再压一层极细雪粒，别让大色块太平 */
+body.is-nogl::after {
+  content: "";
+  position: fixed; inset: 0; z-index: 0;
+  pointer-events: none;
+  opacity: .06;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.82' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23g)'/%3E%3C/svg%3E");
+}
+
+::selection { background: rgb(47 125 176 / .22); color: var(--ink); }
+
+img, svg, canvas { display: block; max-width: 100%; }
+
+:where(a, button) { color: inherit; }
+
+/* 键盘焦点：冰蓝深色（浅底上唯一够对比的冷色） */
+:where(a, button):focus-visible {
+  outline: 2px solid var(--ice-deep);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+/* ============================== 2. 跳过链接 ============================== */
+.skip {
+  position: fixed;
+  top: -120px; left: 12px;
+  z-index: 90;
+  padding: .62rem 1rem;
+  border-radius: 2px;
+  background: #fff;
+  border: 1px solid var(--ice-deep);
+  color: var(--ink);
+  font-family: var(--f-mono);
+  font-size: .78rem;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-decoration: none;
+  box-shadow: 0 10px 24px -12px rgb(44 63 77 / .45);
+  transition: top .22s var(--ease);
+}
+.skip:focus { top: 12px; }
+
+/* ============================== 3. 舞台 ============================== */
+#stage { position: fixed; inset: 0; z-index: 0; }
+
+#scene {
+  position: absolute; inset: 0; z-index: 0;
+  pointer-events: none;             /* 指针视差走 window，画布不吃事件 */
+}
+#scene-canvas { width: 100%; height: 100%; }
+
+/* 上下极淡的冷灰边：给 header / 站牌条一点支撑，
+   白雪上绝不糊黑边 —— 只是比雪再冷半度 */
+#scene::after {
+  content: "";
+  position: absolute; inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg,
+      rgb(120 150 175 / .13) 0%,
+      rgb(120 150 175 / .04) 14%,
+      rgb(120 150 175 / 0) 28%,
+      rgb(120 150 175 / 0) 74%,
+      rgb(120 150 175 / .07) 92%,
+      rgb(120 150 175 / .11) 100%);
+}
+
+/* ============================== 4. HUD 壳 ============================== */
+#hud {
+  position: absolute; inset: 0; z-index: 2;
+  padding: 0;
+  pointer-events: none;             /* 只让卡片和站牌按钮吃事件 */
+}
+
+/* ============================== 5. Header ============================== */
+.hud-head {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + var(--pad-y));
+  left: calc(env(safe-area-inset-left) + var(--pad-x));
+  right: calc(env(safe-area-inset-right) + var(--pad-x));
+  max-width: 46rem;
+}
+
+.head-word {
+  margin: 0;
+  font-family: var(--f-display);
+  font-weight: 800;
+  font-size: clamp(.96rem, .6rem + 1.1vmin, 1.62rem);
+  line-height: 1.1;
+  letter-spacing: .22em;
+  text-indent: .22em;
+  color: var(--ice-deep);
+  text-shadow: 0 1px 0 rgb(255 255 255 / .55);
+}
+
+.head-title {
+  margin: .3em 0 0;
+  font-family: var(--f-serif);
+  font-weight: 900;
+  font-size: clamp(1.66rem, 1.05rem + 2.35vmin, 3.2rem);
+  line-height: 1.04;
+  letter-spacing: .12em;
+  text-indent: .12em;
+  color: var(--ink);
+  text-shadow: 0 1px 0 rgb(255 255 255 / .6);
+}
+
+.head-subrow {
+  margin-top: 1.02em;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .5rem 1.1rem;
+}
+
+.head-sub {
+  margin: 0;
+  font-family: var(--f-body);
+  font-size: clamp(.72rem, .6rem + .4vmin, .94rem);
+  letter-spacing: .06em;
+  color: var(--ink-2);
+  text-shadow: 0 1px 0 rgb(255 255 255 / .5);
+}
+
+.head-ver {
+  margin: 0;
+  display: inline-flex;
+  align-items: baseline;
+  gap: .5em;
+  padding: .28em .58em;
+  border: 1px solid rgb(47 125 176 / .3);
+  border-radius: 2px;
+  background: rgb(255 255 255 / .58);
+  font-family: var(--f-mono);
+  font-size: clamp(.56rem, .5rem + .22vmin, .7rem);
+  font-weight: 500;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.head-ver b { font-weight: 700; color: var(--ink); }
+
+/* ============================== 6. 车窗卡片 ============================== */
+/* 默认（无 JS / 竖屏 / 无 WebGL）= 网格；body.is-anchored 才切成锚点跟随 */
+#windows {
+  --win-gap: clamp(10px, 1.5vw, 16px);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--win-gap);
+  align-content: center;
+  align-self: center;
+  min-height: 0;
+}
+
+.window-card {
+  --lit: 1;          /* 0..1 由 anchors() 驱动 */
+  --hover: 0;        /* 0 / 1：悬停与键盘焦点 */
+  --i: 0;            /* 0..3：入场阶梯 */
+  --t-in: calc(var(--i) * 120ms);
+
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: .9;
+  min-width: 0;
+  color: var(--ink);
+  text-decoration: none;
+  pointer-events: auto;
+  container-type: inline-size;      /* 字号跟卡片宽度走，而不是跟视口 */
+  -webkit-touch-callout: none;
+}
+
+#windows > .window-card:nth-child(1) { --i: 0; }
+#windows > .window-card:nth-child(2) { --i: 1; }
+#windows > .window-card:nth-child(3) { --i: 2; }
+#windows > .window-card:nth-child(4) { --i: 3; }
+
+/* --- 外辉光：灯烤在雪地上的那一圈（无 blur，纯径向渐变） --- */
+.wc-glow {
+  position: absolute;
+  inset: -18% -14% -16% -14%;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: 50%;
+  opacity: calc(var(--lit) * (.5 + .5 * var(--hover)));
+  background:
+    radial-gradient(closest-side, rgb(255 178 87 / .5) 0%, rgb(255 178 87 / .22) 42%, rgb(255 178 87 / 0) 78%);
+  transition: opacity .45s var(--ease);
+}
+
+/* --- 窗本体：黄铜细双边 + 拱形上沿 + 深烟色玻璃 ---
+   底和车体同族（#18242f 一带），这样卡片是"长在车上的一扇窗"，
+   不是浮在页面上的一块橙色便利贴。 */
+.wc-shell {
+  position: relative;
+  z-index: 1;
+  display: block;
+  height: 100%;
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: 34% 34% 9px 9px / 17% 17% 9px 9px;
+  background-image:
+    /* 竖直窗棂：两道极淡的暗影，一眼读成"窗"而不是"卡片" */
+    linear-gradient(90deg,
+      transparent 32%, rgb(8 16 24 / .16) 32.7%, transparent 33.6%,
+      transparent 66.4%, rgb(8 16 24 / .16) 67.3%, transparent 68%),
+    /* 冷天光斜照在玻璃上半部 */
+    linear-gradient(158deg,
+      rgb(198 226 246 / .2) 0%,
+      rgb(198 226 246 / .05) 26%,
+      rgb(198 226 246 / 0) 52%),
+    linear-gradient(180deg, #0f1b24 0%, #16242e 52%, #1e2f3a 100%);
+  box-shadow:
+    /* 细双边：1px 亮线 / 1px 暗缝 / 1px 暗线（都在框内） */
+    inset 0 0 0 1px var(--frame-hi),
+    inset 0 0 0 2px var(--frame-gap),
+    inset 0 0 0 3px var(--frame-lo),
+    inset 0 1px 0 rgb(255 240 214 / .5),
+    inset 0 -18px 22px -14px rgb(4 10 16 / .62),
+    /* 雪地上的影子是冷的、软的，不是黑的 */
+    0 16px 30px -18px rgb(44 63 77 / .55),
+    0 3px 10px -6px rgb(44 63 77 / .34),
+    0 0 calc(10px + 18px * var(--lit)) rgb(255 178 87 / calc(.10 + .18 * var(--lit) + .16 * var(--hover)));
+  transform: translateY(0) scale(1);
+  transition:
+    transform .26s var(--ease),
+    box-shadow .45s var(--ease),
+    opacity .6s var(--ease) var(--t-in),
+    translate .7s var(--ease-out) var(--t-in);
+}
+
+/* 窗内的灯：一个偏中央的椭圆亮核 + 窗下限漏出的一道窄亮线。
+   mask 把暖光切在卡片 68% 以下 —— 光到不了底角，才不会读成"沙丘地平线"。 */
+.wc-lit {
+  position: absolute; inset: 0; z-index: 1;
+  pointer-events: none;
+  border-radius: inherit;
+  opacity: calc(.3 + .62 * var(--lit) + .1 * var(--hover));
+  background-image:
+    /* 灯从窗下限漏出来的窄亮线（"灯在室内"的关键信号） */
+    linear-gradient(180deg,
+      transparent calc(100% - 11px),
+      rgb(255 232 196 / .92) calc(100% - 4px),
+      rgb(255 178 87 / .35) 100%),
+    /* 灯核：偏中央的椭圆，不是一个横贯全宽的带 */
+    radial-gradient(78% 54% at 50% 104%,
+      rgb(255 240 214 / .98) 0%,
+      rgb(255 203 132 / .74) 20%,
+      rgb(255 158 68 / .3) 46%,
+      rgb(226 126 38 / .08) 68%,
+      transparent 84%);
+  background-size: 100% 100%, 100% 100%;
+  background-position: center bottom, center bottom;
+  background-repeat: no-repeat;
+  -webkit-mask-image: linear-gradient(180deg, transparent 66%, #000 88%);
+  mask-image: linear-gradient(180deg, transparent 66%, #000 88%);
+  transition: opacity .5s var(--ease), background-size .55s var(--ease);
+}
+
+/* 霜花：极淡的冰晶噪声，悬停时从四角退开 */
+.wc-frost {
+  position: absolute; inset: 0; z-index: 2;
+  pointer-events: none;
+  opacity: .52;
+  mix-blend-mode: soft-light;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.74' numOctaves='4' seed='7' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23f)'/%3E%3C/svg%3E");
+  background-size: 170px 170px;
+  /* mask-size 变大 = 霜的边缘往外退，四角先清 */
+  -webkit-mask-image: radial-gradient(closest-side at 50% 50%, transparent 34%, #000 78%);
+  mask-image: radial-gradient(closest-side at 50% 50%, transparent 34%, #000 78%);
+  -webkit-mask-size: 100% 100%; mask-size: 100% 100%;
+  -webkit-mask-position: center; mask-position: center;
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  transition:
+    -webkit-mask-size .85s var(--ease),
+    mask-size .85s var(--ease),
+    opacity .85s var(--ease);
+}
+
+/* 冷光带：悬停/聚焦时扫过一次 */
+.wc-glare {
+  position: absolute; inset: 0; z-index: 3;
+  pointer-events: none;
+  opacity: 0;
+  mix-blend-mode: screen;
+  background-image: linear-gradient(
+    104deg,
+    transparent 30%,
+    rgb(198 230 252 / .28) 43%,
+    rgb(246 252 255 / .78) 50%,
+    rgb(198 230 252 / .26) 57%,
+    transparent 70%);
+  background-size: 240% 100%;
+  background-position: 150% 0;
+  background-repeat: no-repeat;
+}
+
+/* 窗棂：一道黄铜横档，把"上亮窗 / 下车窗"分开，顺手压住中间的空玻璃 */
+.wc-shell::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0;
+  top: 39%;
+  height: 2px;
+  z-index: 3;
+  pointer-events: none;
+  background: linear-gradient(180deg,
+    rgb(255 217 160 / .52) 0%,
+    rgb(224 122 31 / .34) 55%,
+    rgb(6 14 20 / .45) 100%);
+  box-shadow:
+    0 -1px 0 rgb(255 240 214 / .2),
+    0 1px 0 rgb(6 14 20 / .28),
+    0 0 12px rgb(255 178 87 / .16);
+}
+
+/* --- 内容四行：图标钉在上缘，数据压在窗台光之上 --- */
+.wc-body {
+  position: relative;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  /* 下边留 34cqw ≈ 卡片高度的 30%，把最亮的光池让给"窗台" */
+  padding: clamp(22px, 11cqw, 34px) clamp(12px, 6cqw, 20px) 34cqw;
+}
+
+.wc-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.wc-idx {
+  font-family: var(--f-mono);
+  font-weight: 700;
+  font-size: clamp(.58rem, 5cqw, .72rem);
+  line-height: 1;
+  letter-spacing: .06em;
+  color: rgb(255 217 160 / .92);
+  text-shadow: 0 0 calc(5px + 7px * var(--lit)) rgb(255 178 87 / calc(.16 + .3 * var(--lit)));
+  transition: text-shadow .5s var(--ease);
+}
+
+.wc-icon {
+  display: grid;
+  place-items: center;
+  width: clamp(38px, 22cqw, 46px);
+  height: clamp(38px, 22cqw, 46px);
+  flex: 0 0 auto;
+  border-radius: 50%;
+  border: 1px solid rgb(255 217 160 / .42);
+  background: radial-gradient(circle at 34% 26%, rgb(255 236 202 / .16), rgb(255 255 255 / .03) 76%);
+  box-shadow: inset 0 1px 0 rgb(255 240 214 / .24), inset 0 -1px 0 rgb(6 14 20 / .32);
+  color: #eaf3f9;
+}
+.wc-icon svg { width: 60%; height: 60%; }
+
+.wc-value {
+  margin-top: auto;                 /* 数据块整体贴住"窗台光"的上沿 */
+  font-family: var(--f-mono);
+  font-weight: 700;
+  font-size: clamp(.9rem, 7.4cqw, 1.12rem);
+  line-height: 1.14;
+  letter-spacing: .01em;
+  color: var(--lamp-hot);
+  text-shadow: 0 1px 2px rgb(6 14 20 / .55);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wc-name {
+  margin-top: .3em;
+  font-family: var(--f-body);
+  font-weight: 700;
+  font-size: clamp(.95rem, 7.8cqw, 1.14rem);
+  line-height: 1.2;
+  letter-spacing: .06em;
+  color: #f2f8fc;
+  text-shadow: 0 1px 3px rgb(6 14 20 / .6);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wc-note {
+  margin-top: .34em;
+  padding-right: 24px;              /* 给右下角箭头让位 */
+  font-family: var(--f-mono);
+  font-size: clamp(.6rem, 5.4cqw, .74rem);
+  font-weight: 500;
+  line-height: 1.35;
+  letter-spacing: .04em;
+  color: #9fc0d4;
+  text-shadow: 0 1px 2px rgb(6 14 20 / .5);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 窗台积雪：分段的小雪堆，冷的白，压住那道窄亮线 —— "雪 + 灯"的关系才成立 */
+.wc-sill {
+  position: absolute;
+  left: 4px; right: 4px; bottom: 2px;
+  z-index: 5;
+  height: 11px;
+  pointer-events: none;
+  background:
+    radial-gradient(closest-side, #f4f8fb 62%, rgb(244 248 251 / 0) 100%) 9% 62% / 27% 132% no-repeat,
+    radial-gradient(closest-side, #e4edf4 60%, rgb(228 237 244 / 0) 100%) 27% 88% / 15% 86% no-repeat,
+    radial-gradient(closest-side, #ffffff 66%, rgb(255 255 255 / 0) 100%) 47% 48% / 40% 156% no-repeat,
+    radial-gradient(closest-side, #e4edf4 58%, rgb(228 237 244 / 0) 100%) 68% 84% / 18% 96% no-repeat,
+    radial-gradient(closest-side, #f4f8fb 64%, rgb(244 248 251 / 0) 100%) 90% 58% / 24% 124% no-repeat,
+    radial-gradient(closest-side, #c6d6e3 58%, rgb(198 214 227 / 0) 100%) 36% 96% / 12% 62% no-repeat;
+  box-shadow: 0 -1px 3px rgb(198 214 227 / .55);
+  opacity: .96;
+}
+
+/* 右下角箭头：贴在备注那一行的右端，不落进最亮的光池里 */
+.wc-arrow {
+  position: absolute;
+  right: clamp(10px, 5cqw, 16px);
+  bottom: calc(34cqw + 1px);
+  z-index: 5;
+  width: clamp(15px, 8cqw, 19px);
+  height: clamp(15px, 8cqw, 19px);
+  pointer-events: none;
+  color: rgb(242 248 252 / .58);
+  transform: translateX(-3px);
+  transition: color .3s var(--ease), transform .3s var(--ease), opacity .3s var(--ease);
+}
+
+/* --- 悬停 / 按压 / 焦点 --- */
+@media (hover: hover) and (pointer: fine) {
+  .window-card:hover { --hover: 1; }
+  .window-card:hover .wc-shell { transform: translateY(-2px); }
+  .window-card:hover .wc-lit { background-size: 100% 100%, 124% 118%; }
+  .window-card:hover .wc-frost {
+    opacity: .1;
+    -webkit-mask-size: 190% 190%; mask-size: 190% 190%;
+  }
+  .window-card:hover .wc-glare { animation: wcSweep .95s var(--ease) 1 both; }
+  .window-card:hover .wc-arrow { color: #f2f8fc; transform: translateX(0); }
+}
+
+.window-card:focus-visible { outline: none; }
+.window-card:focus-visible .wc-shell {
+  outline: 2px solid var(--ice-deep);
+  outline-offset: 4px;
+}
+.window-card:focus-visible { --hover: 1; }
+.window-card:focus-visible .wc-lit { background-size: 100% 100%, 124% 118%; }
+.window-card:focus-visible .wc-frost {
+  opacity: .1;
+  -webkit-mask-size: 190% 190%; mask-size: 190% 190%;
+}
+.window-card:focus-visible .wc-glare { animation: wcSweep .95s var(--ease) 1 both; }
+.window-card:focus-visible .wc-arrow { color: #f2f8fc; transform: translateX(0); }
+
+/* 按压：下沉 + 暖光增强 */
+.window-card:active .wc-shell {
+  transform: translateY(1px) scale(.994);
+  box-shadow:
+    inset 0 0 0 1px var(--frame-hi),
+    inset 0 0 0 2px var(--frame-gap),
+    inset 0 0 0 3px var(--frame-lo),
+    inset 0 2px 14px -6px rgb(4 10 16 / .6),
+    0 6px 14px -12px rgb(44 63 77 / .5),
+    0 0 26px rgb(255 178 87 / .42);
+}
+.window-card:active .wc-lit { opacity: .94; background-size: 100% 100%, 132% 122%; }
+.window-card:active .wc-glow { opacity: 1; }
+
+@keyframes wcSweep {
+  0%   { background-position: 150% 0; opacity: 0; }
+  14%  { opacity: 1; }
+  100% { background-position: -70% 0; opacity: 0; }
+}
+
+/* --- 锚点跟随模式：绝对定位，transform 由 app.js 每帧写 --- */
+body.is-anchored #windows {
+  position: absolute;
+  inset: 0;
+  display: block;
+  min-height: 0;
+}
+body.is-anchored .window-card {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--card-max);
+  aspect-ratio: .9;
+  will-change: transform;
+  opacity: 1;
+  transition: opacity .45s var(--ease);
+}
+body.is-anchored .window-card.is-out { opacity: 0; pointer-events: none; }
+
+/* --- 非锚点模式（竖屏 / 窄屏 / 无 WebGL）：卡片上方一条极细冰蓝连线 --- */
+/* 只在该拆分的断点里出现（见 §11），桌面无 WebGL 的网格不画线，因为那里没有列车 */
+
+/* ============================== 7. 站牌条 ============================== */
+#board {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .55rem 1rem;
+  padding:
+    .8rem calc(env(safe-area-inset-right) + var(--pad-x))
+    calc(.8rem + env(safe-area-inset-bottom))
+    calc(env(safe-area-inset-left) + var(--pad-x));
+  font-family: var(--f-mono);
+  font-size: clamp(.62rem, .55rem + .32vmin, .78rem);
+  font-weight: 500;
+  letter-spacing: .13em;
+  color: var(--ink-2);
+  text-shadow: 0 1px 0 rgb(255 255 255 / .6);
+  pointer-events: none;
+}
+
+/* 站台边线：两端淡出，不是一条死线 */
+#board::before {
+  content: "";
+  position: absolute;
+  left: var(--pad-x); right: var(--pad-x); top: 0;
+  height: 1px;
+  background: linear-gradient(90deg,
+    rgb(47 125 176 / 0) 0%,
+    rgb(47 125 176 / .22) 18%,
+    rgb(47 125 176 / .22) 82%,
+    rgb(47 125 176 / 0) 100%);
+}
+
+.board-live {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: .5em;
+  color: var(--ink);
+  font-weight: 700;
+}
+.board-led {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--ice-deep);
+  box-shadow: 0 0 0 3px rgb(47 125 176 / .16), 0 0 8px rgb(47 125 176 / .55);
+  animation: ledBreath 3.4s var(--ease) infinite;
+}
+@keyframes ledBreath {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: .42; }
+}
+
+.board-rule {
+  width: 1px; height: 9px;
+  background: rgb(47 125 176 / .28);
+}
+
+.board-copy {
+  margin: 0;
+  padding: .18rem .1rem;
+  border: 0;
+  border-radius: 2px;
+  background: none;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: color .22s var(--ease);
+}
+.board-copy b { font-weight: 700; color: var(--ink); }
+.board-copy:hover,
+.board-copy:hover b { color: var(--ice-deep); }
+@media (pointer: coarse) {
+  .board-copy { min-height: 44px; display: inline-flex; align-items: center; }
+}
+
+.board-url {
+  margin-left: auto;
+  color: rgb(51 85 110 / .74);
+  letter-spacing: .1em;
+}
+
+/* ============================== 8. Toast ============================== */
+#toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(env(safe-area-inset-bottom) + clamp(64px, 9vh, 96px));
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  gap: .8rem;
+  max-width: min(92vw, 30rem);
+  padding: .62rem .9rem;
+  border: 1px solid rgb(47 125 176 / .26);
+  border-radius: 3px;
+  background: rgb(255 255 255 / .97);
+  box-shadow:
+    0 16px 34px -18px rgb(44 63 77 / .45),
+    0 2px 6px -2px rgb(44 63 77 / .18);
+  color: var(--ink);
+  font-family: var(--f-body);
+  font-size: .84rem;
+  line-height: 1.4;
+  text-align: left;
+  opacity: 0;
+  transform: translate(-50%, 140%);
+  pointer-events: none;
+  transition: transform .34s var(--ease), opacity .34s var(--ease);
+}
+#toast.is-on { opacity: 1; transform: translate(-50%, 0); }
+#toast.has-act.is-on { pointer-events: auto; }
+
+.toast-msg { min-width: 0; }
+.toast-act {
+  flex: 0 0 auto;
+  padding: .38rem .68rem;
+  border: 1px solid rgb(47 125 176 / .45);
+  border-radius: 2px;
+  background: rgb(47 125 176 / .09);
+  color: var(--ice-deep);
+  font-family: var(--f-mono);
+  font-size: .74rem;
+  font-weight: 700;
+  letter-spacing: .06em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background .2s var(--ease), color .2s var(--ease);
+}
+.toast-act:hover { background: rgb(47 125 176 / .2); color: var(--ink); }
+@media (pointer: coarse) { .toast-act { min-height: 40px; padding-inline: .8rem; } }
+
+#toast.is-warn { border-color: rgb(224 122 31 / .62); }
+#toast.is-warn .toast-msg { box-shadow: inset 2px 0 0 rgb(224 122 31 / .9); padding-left: .55rem; }
+
+/* ============================== 9. 开场编排 ============================== */
+/* 只有在 JS 活着的时候才隐藏首屏内容：脚本被拦 / 被禁用时直接看到完整网格 */
+html.has-js body:not(.is-live) .head-word,
+html.has-js body:not(.is-live) .head-title,
+html.has-js body:not(.is-live) .head-subrow {
+  opacity: 0;
+  translate: 0 10px;
+}
+html.has-js body:not(.is-live) #board {
+  opacity: 0;
+  translate: 0 8px;
+}
+html.has-js body:not(.is-settled) .wc-shell {
+  opacity: 0;
+  translate: 0 14px;
+}
+
+.head-word,
+.head-title,
+.head-subrow,
+#board {
+  transition:
+    opacity .62s var(--ease),
+    translate .72s var(--ease-out);
+}
+.head-word   { transition-delay: var(--d-head-1); }
+.head-title  { transition-delay: var(--d-head-2); }
+.head-subrow { transition-delay: var(--d-head-3); }
+#board       { transition-delay: var(--d-board); }
+
+/* ============================== 10. 无 WebGL 降级 ============================== */
+body.is-nogl #scene { display: none; }
+body.is-nogl #hud {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: clamp(10px, 2vh, 20px);
+  padding:
+    calc(env(safe-area-inset-top) + var(--pad-y))
+    calc(env(safe-area-inset-right) + var(--pad-x))
+    calc(env(safe-area-inset-bottom) + var(--pad-y) * .4)
+    calc(env(safe-area-inset-left) + var(--pad-x));
+}
+body.is-nogl .hud-head { position: static; }
+body.is-nogl #board { position: static; padding-inline: 0; padding-bottom: 0; }
+body.is-nogl #board::before { display: none; }
+body.is-nogl #windows { align-self: center; max-width: 1180px; width: 100%; margin-inline: auto; }
+
+/* ============================== 11. 响应式 ============================== */
+/* 竖屏 / 窄屏：卡片进 2×2 网格，列车退到上面 */
+@media (max-width: 720px), (max-aspect-ratio: 1/1) {
+  :root { --pad-x: clamp(14px, 4.4vw, 26px); --pad-y: clamp(12px, 2.6vh, 26px); }
+  #hud {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    gap: clamp(8px, 1.8vh, 18px);
+    padding:
+      calc(env(safe-area-inset-top) + var(--pad-y))
+      calc(env(safe-area-inset-right) + var(--pad-x))
+      calc(env(safe-area-inset-bottom) + var(--pad-y) * .4)
+      calc(env(safe-area-inset-left) + var(--pad-x));
+  }
+  .hud-head { position: static; max-width: none; }
+  #board {
+    position: static;
+    padding: 0;
+    justify-content: center;
+    text-align: center;
+  }
+  #board::before { display: none; }
+  .board-url { display: none; }
+  .head-sub { max-width: 22em; }
+
+  #windows {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: clamp(9px, 2.6vw, 14px);
+  }
+  .window-card { aspect-ratio: .88; }
+
+  /* 极细冰蓝连线：每张卡上沿一根 + 一个点位，指向列车方向 */
+  .window-card::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: 100%;
+    width: 1px;
+    height: clamp(10px, 2.2vh, 18px);
+    z-index: 0;
+    pointer-events: none;
+    background: linear-gradient(180deg,
+      rgb(121 207 230 / 0) 0%,
+      rgb(121 207 230 / .34) 86%,
+      rgb(121 207 230 / .52) 100%);
+  }
+  .window-card::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + clamp(10px, 2.2vh, 18px));
+    width: 3px; height: 3px;
+    margin-left: -1.5px;
+    border-radius: 50%;
+    z-index: 0;
+    pointer-events: none;
+    background: var(--ice);
+    box-shadow: 0 0 6px rgb(121 207 230 / .75);
+    opacity: .75;
+  }
+  /* 上排两张的连线拉长，指向列车 */
+  #windows > .window-card:nth-child(-n+2)::before { height: clamp(16px, 3.4vh, 28px); }
+  #windows > .window-card:nth-child(-n+2)::after {
+    bottom: calc(100% + clamp(16px, 3.4vh, 28px));
+  }
+}
+
+/* 中窄横屏（平板 / 小笔记本）：卡片收成 2×2，但别在矮屏上抢列车的位 */
+@media (min-aspect-ratio: 1/1) and (max-width: 900px) and (min-height: 471px) {
+  #windows { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .window-card { aspect-ratio: .92; }
+}
+
+/* 矮横屏 812×375 这类：一切压扁，四窗必须还在 */
+@media (max-height: 470px) and (min-aspect-ratio: 1/1) {
+  :root { --pad-x: clamp(12px, 2vw, 20px); --pad-y: 8px; }
+
+  /* 非锚点（无 WebGL / 无 JS）：header 与站牌条回到文档流里排队 */
+  #hud {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    gap: 6px;
+    padding:
+      calc(env(safe-area-inset-top) + var(--pad-y))
+      calc(env(safe-area-inset-right) + var(--pad-x))
+      calc(.4rem + env(safe-area-inset-bottom))
+      calc(env(safe-area-inset-left) + var(--pad-x));
+  }
+  .hud-head { position: static; max-width: none; right: auto; }
+  #board { position: static; padding: 0; }
+  body:not(.is-anchored) #board::before { display: none; }
+
+  /* 非锚点：四窗必须还在同一排（2×2 会把 375 高的屏撑爆） */
+  body:not(.is-anchored) #windows { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+  /* 锚点模式：header / 站牌条钉回角落，卡片跟着车窗走 */
+  body.is-anchored #hud { display: block; padding: 0; }
+  body.is-anchored .hud-head { position: absolute; }
+  body.is-anchored #board {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    padding:
+      .34rem calc(env(safe-area-inset-right) + var(--pad-x))
+      calc(.34rem + env(safe-area-inset-bottom))
+      calc(env(safe-area-inset-left) + var(--pad-x));
+  }
+
+  .head-word { font-size: clamp(.7rem, 1.9vh, .92rem); letter-spacing: .18em; text-indent: .18em; }
+  .head-title {
+    display: inline-block;
+    margin-top: .1em;
+    font-size: clamp(1.04rem, 3.4vh, 1.5rem);
+  }
+  .head-subrow { margin-top: .26em; }
+  .head-sub { display: none; }        /* 矮横屏砍副行，保住列车与卡片 */
+  .head-ver { padding: .16em .42em; }
+
+  #board { gap: .4rem .8rem; font-size: .58rem; }
+  .board-url { display: none; }
+
+  .window-card { aspect-ratio: 1.02; }
+  .wc-body { padding: clamp(16px, 10cqw, 24px) clamp(11px, 6cqw, 16px) 30cqw; }
+  .wc-icon { width: clamp(30px, 19cqw, 38px); height: clamp(30px, 19cqw, 38px); }
+  .wc-note { font-size: clamp(.54rem, 5cqw, .68rem); padding-right: 20px; }
+  .wc-arrow { bottom: calc(30cqw + 1px); }
+  .wc-shell::after { top: 38%; }
+}
+
+/* 宽屏：卡片略放大，header 更靠左上 */
+@media (min-width: 1500px) {
+  :root { --pad-x: 42px; --pad-y: 34px; }
+}
+
+/* ============================== 12. 减少动效 ============================== */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+    transition-delay: 0ms !important;
+  }
+  .wc-glare { display: none; }
+  .wc-glow { transition: none; }
+  .board-led { animation: none; opacity: 1; }
+}
+
+/* is-reduced 由 app.js 在系统偏好为 reduce 时挂上，双保险 */
+body.is-reduced *, body.is-reduced *::before, body.is-reduced *::after {
+  animation-duration: .001ms !important;
+  animation-delay: 0ms !important;
+  transition-duration: .001ms !important;
+  transition-delay: 0ms !important;
+}
+body.is-reduced .wc-glare { display: none; }
